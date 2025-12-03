@@ -23,15 +23,17 @@ Questa guida descrive come i negozianti possono utilizzare l'area riservata per 
 2. Clicca su **"+ Nuovo Cliente"**
 3. Compila il form:
    - **Negozio**: Seleziona il negozio a cui appartiene il cliente
-   - **Email**: Email del cliente (sarà usata per l'account)
-   - **Password Temporanea**: Password iniziale (il cliente potrà cambiarla)
+   - **Email**: Email del cliente (solo per identificazione, NON riceverà email)
    - **Nome Completo**: Nome del cliente
    - **Telefono**: Numero di telefono (opzionale)
    - **Indirizzo**: Indirizzo del cliente (opzionale)
    - **Note**: Note aggiuntive sul cliente (opzionale)
 4. Clicca **"Crea Cliente"**
 
-**Nota**: Il sistema creerà automaticamente un account Supabase per il cliente con le credenziali fornite.
+**Nota Importante**: 
+- I clienti creati dal negoziante **NON ricevono email** e **NON hanno account autonomo**
+- Rimangono **solo nell'area del negozio** e non possono fare login
+- I clienti esterni possono registrarsi autonomamente ma non sono associati ai negozi
 
 ### Modificare Dati Cliente
 
@@ -114,18 +116,20 @@ Le foto vengono caricate su Supabase Storage nel bucket `customer-photos` e sono
 
 - **Solo Negozianti**: Solo gli utenti con ruolo `negoziante` possono accedere all'area gestione clienti
 - **Proprietà Negozi**: I negozianti possono vedere solo i clienti dei propri negozi
-- **Creazione Account**: Per creare clienti, è necessaria `SUPABASE_SERVICE_KEY` configurata
+- **Clienti Interni**: I clienti creati dal negoziante NON hanno account autonomo e NON ricevono email
+- **Clienti Esterni**: I clienti esterni possono registrarsi autonomamente ma non sono visibili nell'area negozio
 - **Upload Foto**: Le foto vengono caricate su Storage pubblico ma associate al cliente
 
 ## Troubleshooting
 
-### Errore "SUPABASE_SERVICE_KEY non configurata"
-- Configura `SUPABASE_SERVICE_KEY` nel file `.env`
-- Ottieni la Service Key da Supabase Dashboard → Settings → API
-
 ### Cliente non appare nella lista
 - Verifica che il cliente abbia almeno una foto associata a un tuo negozio
 - I clienti vengono mostrati solo se hanno foto nei tuoi negozi
+- I clienti esterni (registrati autonomamente) NON appaiono nella lista
+
+### Differenza tra Clienti Interni ed Esterni
+- **Clienti Interni**: Creati dal negoziante, senza account, senza email, solo nell'area negozio
+- **Clienti Esterni**: Si registrano autonomamente, hanno account, possono fare login, NON sono associati a negozi
 
 ### Upload foto fallisce
 - Verifica che il bucket `customer-photos` esista su Supabase Storage

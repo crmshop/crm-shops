@@ -23,8 +23,9 @@ class CustomerBase(BaseModel):
 
 
 class CustomerCreate(CustomerBase):
-    password: str  # Password temporanea per il cliente
     shop_id: UUID  # Negozio a cui appartiene il cliente
+    # Nota: I clienti creati dal negoziante NON hanno account autonomo
+    # Rimangono solo nell'area del negozio senza email di conferma
 
 
 class CustomerUpdate(BaseModel):
@@ -134,69 +135,44 @@ async def create_customer(
         )
     
     try:
-        # Usa service key per operazioni admin
-        from backend.config import settings
-        if not settings.SUPABASE_SERVICE_KEY:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="SUPABASE_SERVICE_KEY non configurata. Necessaria per creare clienti."
-            )
+        # I clienti creati dal negoziante NON hanno account Supabase Auth
+        # Sono solo record nel database associati al negozio
+        # Genera un ID univoco per il cliente (non è un UUID di auth.users)
+        import uuid
+        customer_id = uuid.uuid4()
         
-        # Crea client Supabase con service key per operazioni admin
-        from supabase import create_client
-        admin_supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-        
-        # Crea l'utente cliente in Supabase Auth
-        auth_response = admin_supabase.auth.admin.create_user({
-            "email": customer.email,
-            "password": customer.password,
-            "email_confirm": True,  # Auto-conferma email per clienti creati da negoziante
-            "user_metadata": {
-                "role": "cliente",
-                "created_by_shop_owner": True,
-                "shop_id": str(customer.shop_id)
-            }
-        })
-        
-        if not auth_response.user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Errore nella creazione dell'utente cliente"
-            )
-        
-        user_id = auth_response.user.id
-        
-        # Crea/aggiorna il record nella tabella users
+        # Crea record nella tabella users senza account Auth
+        # Usiamo un campo per distinguere clienti interni (creati da negoziante)
+        # vs clienti esterni (registrati autonomamente)
         user_data = {
-            "id": user_id,
+            "id": str(customer_id),
             "email": customer.email,
             "role": "cliente",
             "full_name": customer.full_name,
-            "phone": customer.phone
+            "phone": customer.phone,
+            # Aggiungi metadata per identificare clienti interni
+            # Nota: potresti voler aggiungere un campo 'is_shop_customer' o simile
         }
         
-        # Usa upsert per creare o aggiornare
-        users_response = supabase.from_('users').upsert(user_data).execute()
+        # Inserisci nella tabella users
+        users_response = supabase.from_('users').insert(user_data).execute()
         
         if not users_response.data:
-            # Se fallisce, elimina l'utente da auth
-            try:
-                admin_supabase.auth.admin.delete_user(user_id)
-            except:
-                pass
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Errore nel salvare i dati del cliente"
             )
         
-        # Crea record nella tabella customers (se esiste) o usa una relazione
-        # Per ora, il cliente è associato al negozio tramite le foto che caricherà
+        # Crea associazione cliente-negozio tramite una tabella di relazione
+        # Per ora, l'associazione avviene tramite le foto cliente che hanno shop_id
+        # In futuro potresti creare una tabella shop_customers
         
         return CustomerResponse.model_validate({
             **users_response.data[0],
             "shop_id": customer.shop_id,
             "address": customer.address,
-            "notes": customer.notes
+            "notes": customer.notes,
+            "user_id": str(customer_id)  # ID del cliente (non è un auth.users.id)
         })
         
     except HTTPException:
@@ -214,7 +190,7 @@ async def get_customer(
     customer_id: UUID,
     current_user: dict = Depends(get_current_shop_owner)
 ):
-    """Ottieni dettagli di un cliente specifico"""
+    """Ottieni dettagli di un cliente interno specifico (solo clienti del negozio, non clienti esterni)"""
     supabase = get_supabase()
     
     try:
@@ -228,15 +204,22 @@ async def get_customer(
             )
         
         # Verifica che il cliente abbia foto associate a un negozio del negoziante
+        # Questo garantisce che sia un cliente interno, non un cliente esterno registrato
         shops_response = supabase.from_('shops').select('id').eq('owner_id', current_user['id']).execute()
         shop_ids = [shop['id'] for shop in shops_response.data]
+        
+        if not shop_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Nessun negozio trovato"
+            )
         
         photo_response = supabase.from_('customer_photos').select('shop_id').eq('user_id', str(customer_id)).in_('shop_id', [str(sid) for sid in shop_ids]).limit(1).execute()
         
         if not photo_response.data:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Non autorizzato a vedere questo cliente"
+                detail="Cliente non associato ai tuoi negozi o cliente esterno"
             )
         
         shop_id = photo_response.data[0]['shop_id']

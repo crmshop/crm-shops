@@ -82,11 +82,7 @@ function showCreateCustomerForm() {
                         <div class="form-group">
                             <label>Email *</label>
                             <input type="email" id="customer-email" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Password Temporanea *</label>
-                            <input type="password" id="customer-password" required minlength="6">
-                            <small>Il cliente potrà cambiarla al primo accesso</small>
+                            <small>Email del cliente (non riceverà email di conferma)</small>
                         </div>
                         <div class="form-group">
                             <label>Nome Completo</label>
@@ -124,7 +120,8 @@ async function createCustomer() {
         const customerData = {
             shop_id: document.getElementById('customer-shop').value,
             email: document.getElementById('customer-email').value,
-            password: document.getElementById('customer-password').value,
+            // Nota: I clienti creati dal negoziante NON hanno password/account
+            // Rimangono solo nell'area del negozio
             full_name: document.getElementById('customer-name').value || null,
             phone: document.getElementById('customer-phone').value || null,
             address: document.getElementById('customer-address').value || null,
