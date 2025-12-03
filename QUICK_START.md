@@ -154,3 +154,5 @@ curl -X POST http://localhost:8000/api/auth/login \
 - Usa Network tab nel DevTools per debug API calls
 - Verifica i log del backend per errori server-side
 
+
+

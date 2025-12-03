@@ -186,3 +186,5 @@ window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 window.closeModal = closeModal;
 
+
+

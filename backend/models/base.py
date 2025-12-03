@@ -68,3 +68,5 @@ def create_tables():
         logger.error(f"Errore creazione tabelle: {e}")
         return False
 
+
+

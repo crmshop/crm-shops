@@ -12,3 +12,5 @@ cd backend
 # Avvia il server
 python main.py
 
+
+

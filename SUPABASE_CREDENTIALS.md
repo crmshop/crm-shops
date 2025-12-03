@@ -72,3 +72,5 @@ SUPABASE_SERVICE_KEY="[OTTENI DAL DASHBOARD]"
 
 Accedi al dashboard: https://app.supabase.com/project/mfcjnzeflvgyjvxprfzz
 
+
+

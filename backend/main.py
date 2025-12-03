@@ -36,6 +36,14 @@ async def startup_event():
     """Evento eseguito all'avvio dell'applicazione"""
     logger.info("Avvio applicazione CRM Shops")
     
+    # Valida variabili d'ambiente in produzione
+    if settings.ENVIRONMENT == "production":
+        from backend.utils.env_loader import validate_required_env_vars
+        validation = validate_required_env_vars()
+        if not validation["all_valid"]:
+            logger.error("❌ Variabili d'ambiente richieste mancanti in produzione!")
+            logger.error("L'applicazione potrebbe non funzionare correttamente.")
+
     # Inizializza Supabase se le credenziali sono configurate
     if settings.SUPABASE_URL and settings.SUPABASE_KEY:
         try:

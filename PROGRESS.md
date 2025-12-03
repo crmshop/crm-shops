@@ -145,3 +145,5 @@
 - **Supabase Dashboard**: https://app.supabase.com/project/mfcjnzeflvgyjvxprfzz
 - **GitHub**: https://github.com/crmshop/crm-shops
 
+
+

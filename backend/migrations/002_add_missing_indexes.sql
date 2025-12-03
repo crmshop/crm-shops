@@ -12,3 +12,5 @@ CREATE INDEX IF NOT EXISTS idx_purchases_shop ON public.purchases(shop_id);
 CREATE INDEX IF NOT EXISTS idx_purchases_product ON public.purchases(product_id);
 CREATE INDEX IF NOT EXISTS idx_purchases_outfit ON public.purchases(outfit_id);
 
+
+

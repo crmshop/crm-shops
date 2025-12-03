@@ -200,3 +200,5 @@ class Prompt(Base):
     # Relazioni
     shop = relationship("Shop", back_populates="prompts")
 
+
+

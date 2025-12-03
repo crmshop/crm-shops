@@ -154,3 +154,5 @@ CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON public.products
 CREATE TRIGGER update_prompts_updated_at BEFORE UPDATE ON public.prompts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+
+

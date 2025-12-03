@@ -193,3 +193,5 @@ async def delete_customer_photo(
             detail=f"Errore durante l'eliminazione della foto: {str(e)}"
         )
 
+
+

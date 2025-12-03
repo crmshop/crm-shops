@@ -142,3 +142,5 @@ Funzione `update_updated_at_column()` aggiorna automaticamente il campo `updated
 
 Vedi `backend/migrations/README.md` per istruzioni su come applicare le migrazioni.
 
+
+

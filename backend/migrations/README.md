@@ -53,3 +53,5 @@ Per fare rollback di una migrazione, usa il file corrispondente nella cartella `
 - ✅ Puoi eseguirle multiple volte senza problemi
 - 🔒 Assicurati di avere i permessi corretti sul database
 
+
+
