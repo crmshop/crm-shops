@@ -1,10 +1,15 @@
 """
 Route per gestione prodotti
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import Optional, List
 from uuid import UUID
+from supabase import Client
+from backend.database import get_supabase
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/products", tags=["prodotti"])
 
@@ -38,57 +43,140 @@ class ProductUpdate(BaseModel):
 async def list_products(
     shop_id: Optional[UUID] = None,
     category: Optional[str] = None,
-    available: Optional[bool] = None
+    available: Optional[bool] = None,
+    supabase: Client = Depends(get_supabase)
 ):
     """Lista prodotti con filtri opzionali"""
-    # TODO: Implementare query Supabase
-    return {
-        "message": "Lista prodotti - da implementare",
-        "filters": {
-            "shop_id": str(shop_id) if shop_id else None,
-            "category": category,
-            "available": available
+    try:
+        query = supabase.table("products").select("*")
+        
+        if shop_id:
+            query = query.eq("shop_id", str(shop_id))
+        if category:
+            query = query.eq("category", category)
+        if available is not None:
+            query = query.eq("available", available)
+        
+        result = query.execute()
+        return {
+            "products": result.data,
+            "count": len(result.data)
         }
-    }
+    except Exception as e:
+        logger.error(f"Errore lista prodotti: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Errore durante il recupero prodotti: {str(e)}"
+        )
 
 
 @router.get("/{product_id}")
-async def get_product(product_id: UUID):
+async def get_product(product_id: UUID, supabase: Client = Depends(get_supabase)):
     """Ottieni dettagli di un prodotto"""
-    # TODO: Implementare query Supabase
-    return {
-        "message": "Dettagli prodotto - da implementare",
-        "product_id": str(product_id)
-    }
+    try:
+        result = supabase.table("products").select("*").eq("id", str(product_id)).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Prodotto non trovato"
+            )
+        
+        return {"product": result.data[0]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Errore recupero prodotto: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Errore durante il recupero prodotto: {str(e)}"
+        )
 
 
-@router.post("/")
-async def create_product(product: ProductCreate):
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_product(product: ProductCreate, supabase: Client = Depends(get_supabase)):
     """Crea un nuovo prodotto"""
-    # TODO: Implementare inserimento Supabase
-    return {
-        "message": "Prodotto creato - da implementare",
-        "product": product.dict()
-    }
+    try:
+        # Valida categoria
+        if product.category not in ["vestiti", "scarpe", "accessori"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Categoria deve essere 'vestiti', 'scarpe' o 'accessori'"
+            )
+        
+        product_data = product.dict()
+        product_data["shop_id"] = str(product_data["shop_id"])
+        
+        result = supabase.table("products").insert(product_data).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Errore durante la creazione del prodotto"
+            )
+        
+        return {
+            "message": "Prodotto creato con successo",
+            "product": result.data[0]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Errore creazione prodotto: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Errore durante la creazione del prodotto: {str(e)}"
+        )
 
 
 @router.put("/{product_id}")
-async def update_product(product_id: UUID, product: ProductUpdate):
+async def update_product(product_id: UUID, product: ProductUpdate, supabase: Client = Depends(get_supabase)):
     """Aggiorna un prodotto"""
-    # TODO: Implementare aggiornamento Supabase
-    return {
-        "message": "Prodotto aggiornato - da implementare",
-        "product_id": str(product_id),
-        "updates": product.dict(exclude_unset=True)
-    }
+    try:
+        updates = product.dict(exclude_unset=True)
+        
+        if not updates:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nessun campo da aggiornare"
+            )
+        
+        result = supabase.table("products").update(updates).eq("id", str(product_id)).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Prodotto non trovato"
+            )
+        
+        return {
+            "message": "Prodotto aggiornato con successo",
+            "product": result.data[0]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Errore aggiornamento prodotto: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Errore durante l'aggiornamento del prodotto: {str(e)}"
+        )
 
 
 @router.delete("/{product_id}")
-async def delete_product(product_id: UUID):
+async def delete_product(product_id: UUID, supabase: Client = Depends(get_supabase)):
     """Elimina un prodotto"""
-    # TODO: Implementare eliminazione Supabase
-    return {
-        "message": "Prodotto eliminato - da implementare",
-        "product_id": str(product_id)
-    }
+    try:
+        result = supabase.table("products").delete().eq("id", str(product_id)).execute()
+        
+        return {
+            "message": "Prodotto eliminato con successo",
+            "product_id": str(product_id)
+        }
+    except Exception as e:
+        logger.error(f"Errore eliminazione prodotto: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Errore durante l'eliminazione del prodotto: {str(e)}"
+        )
 
