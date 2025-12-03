@@ -126,17 +126,20 @@ async def generate_image(
             )
         
         # Genera immagine usando servizio AI
-        ai_result = await ai_service.generate_image(
+        # Determina quale modello usare (default: gemini)
+        ai_model = "gemini"  # Default, può essere migliorato con selezione utente
+        
+        ai_result = await ai_service.generate_image_with_product(
             customer_photo_url=photo["image_url"],
             product_image_url=product_data.get("image_url") if product_data else None,
             prompt=prompt,
             scenario=request.scenario,
-            service="banana_pro"  # Default, può essere configurato
+            ai_model=ai_model
         )
         
-        generated_image_url = ai_result["image_url"]
-        prompt_used = ai_result["prompt_used"]
-        ai_service_used = ai_result["ai_service"]
+        generated_image_url = ai_result.get("image_url", "")
+        prompt_used = prompt or ai_result.get("prompt_used", "")
+        ai_service_used = ai_result.get("ai_service", ai_model)
         
         image_data = {
             "customer_photo_id": str(request.customer_photo_id),

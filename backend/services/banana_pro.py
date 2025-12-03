@@ -128,6 +128,7 @@ class BananaProService:
                     logger.error(f"Errore polling Banana Pro: {e}")
                     if attempt == max_attempts - 1:
                         raise
+                    import asyncio
                     await asyncio.sleep(2)
             
             raise TimeoutError("Timeout polling job Banana Pro")

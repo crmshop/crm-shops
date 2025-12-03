@@ -1,145 +1,139 @@
 """
-Servizio per generazione immagini AI
-Supporta Banana Pro e Google Gemini
+Servizio principale per l'integrazione con AI generativa (Banana Pro, Google Gemini)
 """
-from typing import Optional, Dict, Any
-from backend.config import settings
-import httpx
 import logging
-# from PIL import Image  # Da aggiungere quando necessario per processing immagini
+from typing import Optional, Dict, Any
+from backend.services.banana_pro import banana_pro_service
+from backend.services.gemini import gemini_service
 
 logger = logging.getLogger(__name__)
 
 
 class AIService:
-    """Classe base per servizi AI"""
+    """Servizio principale per generazione immagini AI"""
     
     def __init__(self):
-        self.banana_pro_key = settings.BANANA_PRO_API_KEY
-        self.gemini_key = settings.GEMINI_API_KEY
-    
-    async def generate_image(
+        logger.info("Servizio AI inizializzato")
+        self.banana_pro = banana_pro_service
+        self.gemini = gemini_service
+
+    async def generate_image_with_product(
         self,
         customer_photo_url: str,
-        product_image_url: Optional[str] = None,
-        outfit_product_urls: Optional[list] = None,
+        product_image_url: str,
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
-        service: str = "banana_pro"
+        ai_model: Optional[str] = "gemini"  # Default: Gemini
     ) -> Dict[str, Any]:
         """
-        Genera un'immagine combinando foto cliente e prodotto/outfit
+        Genera un'immagine di un cliente che indossa un prodotto usando l'AI.
         
         Args:
             customer_photo_url: URL della foto del cliente
-            product_image_url: URL dell'immagine del prodotto (opzionale)
-            outfit_product_urls: Lista di URL prodotti per outfit (opzionale)
+            product_image_url: URL dell'immagine del prodotto
             prompt: Prompt personalizzato (opzionale)
-            scenario: Scenario/contesto (opzionale)
-            service: Servizio da usare ('banana_pro' o 'gemini')
+            scenario: Scenario/contesto (montagna, spiaggia, etc.)
+            ai_model: Modello AI da usare ('banana_pro' o 'gemini')
         
         Returns:
-            Dict con 'image_url', 'prompt_used', 'ai_service'
+            Dict con 'image_url', 'status', 'ai_service'
         """
-        if service == "banana_pro":
-            return await self._generate_with_banana_pro(
-                customer_photo_url, product_image_url, outfit_product_urls, prompt, scenario
-            )
-        elif service == "gemini":
-            return await self._generate_with_gemini(
-                customer_photo_url, product_image_url, outfit_product_urls, prompt, scenario
-            )
-        else:
-            raise ValueError(f"Servizio AI non supportato: {service}")
-    
-    async def _generate_with_banana_pro(
-        self,
-        customer_photo_url: str,
-        product_image_url: Optional[str] = None,
-        outfit_product_urls: Optional[list] = None,
-        prompt: Optional[str] = None,
-        scenario: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Genera immagine usando Banana Pro"""
-        # TODO: Implementare chiamata reale a Banana Pro API
-        # Per ora restituisce un placeholder
-        
-        if not self.banana_pro_key:
-            logger.warning("Banana Pro API key non configurata, usando placeholder")
+        logger.info(f"Generazione immagine AI richiesta con modello: {ai_model}")
+        logger.info(f"Foto cliente: {customer_photo_url}")
+        logger.info(f"Immagine prodotto: {product_image_url}")
+        logger.info(f"Prompt: {prompt}, Scenario: {scenario}")
+
+        try:
+            # Seleziona il servizio AI
+            if ai_model == "banana_pro":
+                if not self.banana_pro.api_key:
+                    logger.warning("Banana Pro API key non configurata, uso Gemini")
+                    ai_model = "gemini"
+                else:
+                    result = await self.banana_pro.generate_image(
+                        customer_photo_url=customer_photo_url,
+                        product_image_url=product_image_url,
+                        prompt=prompt,
+                        scenario=scenario
+                    )
+                    return result
+            
+            if ai_model == "gemini":
+                if not self.gemini.api_key:
+                    logger.warning("Gemini API key non configurata, uso placeholder")
+                    return {
+                        "image_url": "https://via.placeholder.com/1024x1024?text=AI+Generated+Image+Placeholder",
+                        "status": "placeholder",
+                        "ai_service": "none",
+                        "error": "Gemini API key non configurata"
+                    }
+                
+                result = await self.gemini.generate_image(
+                    customer_photo_url=customer_photo_url,
+                    product_image_url=product_image_url,
+                    prompt=prompt,
+                    scenario=scenario
+                )
+                return result
+            
+            # Fallback a placeholder se modello non riconosciuto
+            logger.warning(f"Modello AI '{ai_model}' non riconosciuto, uso placeholder")
             return {
-                "image_url": "https://placeholder.com/banana-pro-generated.jpg",
-                "prompt_used": prompt or "Generate image of person wearing product",
-                "ai_service": "banana_pro",
-                "status": "placeholder"
+                "image_url": "https://via.placeholder.com/1024x1024?text=AI+Generated+Image+Placeholder",
+                "status": "placeholder",
+                "ai_service": "none",
+                "error": f"Modello '{ai_model}' non supportato"
             }
-        
-        # Placeholder per implementazione futura
-        logger.info("Chiamata Banana Pro (placeholder)")
-        
-        return {
-            "image_url": "https://placeholder.com/banana-pro-generated.jpg",
-            "prompt_used": prompt or "Generate image of person wearing product",
-            "ai_service": "banana_pro",
-            "status": "placeholder"
-        }
-    
-    async def _generate_with_gemini(
-        self,
-        customer_photo_url: str,
-        product_image_url: Optional[str] = None,
-        outfit_product_urls: Optional[list] = None,
-        prompt: Optional[str] = None,
-        scenario: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Genera immagine usando Google Gemini"""
-        # TODO: Implementare chiamata reale a Gemini API
-        
-        if not self.gemini_key:
-            logger.warning("Gemini API key non configurata, usando placeholder")
+            
+        except Exception as e:
+            logger.error(f"Errore generazione immagine AI: {e}")
+            # Restituisci placeholder in caso di errore
             return {
-                "image_url": "https://placeholder.com/gemini-generated.jpg",
-                "prompt_used": prompt or "Generate image of person wearing product",
-                "ai_service": "gemini",
-                "status": "placeholder"
+                "image_url": "https://via.placeholder.com/1024x1024?text=Error+Generating+Image",
+                "status": "error",
+                "ai_service": ai_model,
+                "error": str(e)
             }
-        
-        # Placeholder per implementazione futura
-        logger.info("Chiamata Gemini (placeholder)")
-        
-        return {
-            "image_url": "https://placeholder.com/gemini-generated.jpg",
-            "prompt_used": prompt or "Generate image of person wearing product",
-            "ai_service": "gemini",
-            "status": "placeholder"
-        }
-    
+
     def build_prompt(
         self,
         product_category: Optional[str] = None,
         product_style: Optional[str] = None,
-        scenario: Optional[str] = None,
-        base_prompt: Optional[str] = None
+        scenario: Optional[str] = None
     ) -> str:
-        """Costruisce un prompt personalizzato per la generazione"""
-        if base_prompt:
-            return base_prompt
+        """
+        Costruisci un prompt per la generazione immagine
         
-        prompt_parts = ["Generate a realistic image of a person wearing"]
+        Args:
+            product_category: Categoria prodotto (vestiti, scarpe, accessori)
+            product_style: Stile prodotto
+            scenario: Scenario/contesto
+        
+        Returns:
+            Prompt formattato
+        """
+        base_prompt = "A person wearing"
         
         if product_category:
-            prompt_parts.append(f"a {product_category}")
-        
+            base_prompt += f" {product_category}"
         if product_style:
-            prompt_parts.append(f"in {product_style} style")
+            base_prompt += f" in {product_style} style"
         
-        if scenario:
-            prompt_parts.append(f"in a {scenario} setting")
+        scenario_prompts = {
+            "montagna": "in a mountain setting with snow and trees, winter atmosphere",
+            "spiaggia": "on a beautiful beach with sand and ocean, summer atmosphere",
+            "città": "in an urban city setting, modern architecture",
+            "festa": "at a party or celebration, festive atmosphere",
+            "lavoro": "in a professional office environment",
+            "casual": "in a casual everyday setting"
+        }
         
-        prompt_parts.append(". The person should look natural and the clothing should fit perfectly.")
+        if scenario and scenario.lower() in scenario_prompts:
+            base_prompt += f", {scenario_prompts[scenario.lower()]}"
         
-        return " ".join(prompt_parts)
+        base_prompt += ". High quality, professional photography, realistic lighting"
+        
+        return base_prompt
 
 
-# Istanza globale del servizio AI
 ai_service = AIService()
-
