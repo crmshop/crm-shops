@@ -136,44 +136,28 @@ async def create_customer(
     
     try:
         # I clienti creati dal negoziante NON hanno account Supabase Auth
-        # Sono solo record nel database associati al negozio
-        # Genera un ID univoco per il cliente (non è un UUID di auth.users)
-        import uuid
-        customer_id = uuid.uuid4()
+        # Sono solo record nella tabella shop_customers (separata da users)
+        # NON ricevono email e rimangono solo nell'area del negozio
         
-        # Crea record nella tabella users senza account Auth
-        # Usiamo un campo per distinguere clienti interni (creati da negoziante)
-        # vs clienti esterni (registrati autonomamente)
-        user_data = {
-            "id": str(customer_id),
+        customer_data = {
+            "shop_id": str(customer.shop_id),
             "email": customer.email,
-            "role": "cliente",
             "full_name": customer.full_name,
             "phone": customer.phone,
-            # Aggiungi metadata per identificare clienti interni
-            # Nota: potresti voler aggiungere un campo 'is_shop_customer' o simile
+            "address": customer.address,
+            "notes": customer.notes
         }
         
-        # Inserisci nella tabella users
-        users_response = supabase.from_('users').insert(user_data).execute()
+        # Inserisci nella tabella shop_customers (non users)
+        customers_response = supabase.from_('shop_customers').insert(customer_data).execute()
         
-        if not users_response.data:
+        if not customers_response.data:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Errore nel salvare i dati del cliente"
             )
         
-        # Crea associazione cliente-negozio tramite una tabella di relazione
-        # Per ora, l'associazione avviene tramite le foto cliente che hanno shop_id
-        # In futuro potresti creare una tabella shop_customers
-        
-        return CustomerResponse.model_validate({
-            **users_response.data[0],
-            "shop_id": customer.shop_id,
-            "address": customer.address,
-            "notes": customer.notes,
-            "user_id": str(customer_id)  # ID del cliente (non è un auth.users.id)
-        })
+        return CustomerResponse.model_validate(customers_response.data[0])
         
     except HTTPException:
         raise
@@ -194,8 +178,8 @@ async def get_customer(
     supabase = get_supabase()
     
     try:
-        # Verifica che il cliente appartenga a un negozio del negoziante
-        customer_response = supabase.from_('users').select('*').eq('id', str(customer_id)).eq('role', 'cliente').single().execute()
+        # Recupera il cliente dalla tabella shop_customers (solo clienti interni)
+        customer_response = supabase.from_('shop_customers').select('*').eq('id', str(customer_id)).single().execute()
         
         if not customer_response.data:
             raise HTTPException(
@@ -203,31 +187,17 @@ async def get_customer(
                 detail="Cliente non trovato"
             )
         
-        # Verifica che il cliente abbia foto associate a un negozio del negoziante
-        # Questo garantisce che sia un cliente interno, non un cliente esterno registrato
+        # Verifica che il cliente appartenga a un negozio del negoziante
         shops_response = supabase.from_('shops').select('id').eq('owner_id', current_user['id']).execute()
-        shop_ids = [shop['id'] for shop in shops_response.data]
+        shop_ids = [str(shop['id']) for shop in shops_response.data]
         
-        if not shop_ids:
+        if customer_response.data['shop_id'] not in shop_ids:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Nessun negozio trovato"
+                detail="Non autorizzato a vedere questo cliente"
             )
         
-        photo_response = supabase.from_('customer_photos').select('shop_id').eq('user_id', str(customer_id)).in_('shop_id', [str(sid) for sid in shop_ids]).limit(1).execute()
-        
-        if not photo_response.data:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cliente non associato ai tuoi negozi o cliente esterno"
-            )
-        
-        shop_id = photo_response.data[0]['shop_id']
-        
-        return CustomerResponse.model_validate({
-            **customer_response.data,
-            "shop_id": shop_id
-        })
+        return CustomerResponse.model_validate(customer_response.data)
         
     except HTTPException:
         raise
@@ -254,7 +224,8 @@ async def update_customer(
     try:
         update_data = customer.model_dump(exclude_unset=True)
         
-        response = supabase.from_('users').update(update_data).eq('id', str(customer_id)).execute()
+        # Aggiorna nella tabella shop_customers
+        response = supabase.from_('shop_customers').update(update_data).eq('id', str(customer_id)).execute()
         
         if not response.data:
             raise HTTPException(
@@ -262,14 +233,7 @@ async def update_customer(
                 detail="Errore nell'aggiornamento del cliente"
             )
         
-        # Recupera shop_id per la risposta
-        photo_response = supabase.from_('customer_photos').select('shop_id').eq('user_id', str(customer_id)).limit(1).execute()
-        shop_id = photo_response.data[0]['shop_id'] if photo_response.data else None
-        
-        return CustomerResponse.model_validate({
-            **response.data[0],
-            "shop_id": shop_id
-        })
+        return CustomerResponse.model_validate(response.data[0])
         
     except HTTPException:
         raise
@@ -333,8 +297,9 @@ async def upload_customer_photo(
         public_url = supabase.storage.from_(bucket_name).get_public_url(file_name)
         
         # Salva metadati nel database
+        # Usa customer_id (cliente negozio) invece di user_id (cliente esterno)
         photo_data = {
-            "user_id": str(customer_id),
+            "customer_id": str(customer_id),  # Cliente negozio (non ha user_id)
             "shop_id": str(shop_id),
             "image_url": public_url,
             "angle": angle,
@@ -380,7 +345,8 @@ async def get_customer_photos(
         shops_response = supabase.from_('shops').select('id').eq('owner_id', current_user['id']).execute()
         shop_ids = [shop['id'] for shop in shops_response.data]
         
-        response = supabase.from_('customer_photos').select('*').eq('user_id', str(customer_id)).in_('shop_id', [str(sid) for sid in shop_ids]).execute()
+        # Recupera foto usando customer_id (cliente negozio) invece di user_id
+        response = supabase.from_('customer_photos').select('*').eq('customer_id', str(customer_id)).in_('shop_id', [str(sid) for sid in shop_ids]).execute()
         
         return {
             "photos": response.data or []
