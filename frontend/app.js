@@ -289,13 +289,69 @@ router.addRoute('/dashboard', () => {
                     </div>
                 </div>
             ` : `
-                <div class="dashboard-section">
+                <div class="dashboard-cliente">
                     <h3>Area Cliente</h3>
-                    <div class="dashboard-actions">
-                        <a href="#" data-route="/photos" class="btn btn-primary">Le Mie Foto</a>
-                        <a href="#" data-route="/outfits" class="btn btn-primary">I Miei Outfit</a>
+                    <p>Qui potrai gestire le tue foto, i tuoi outfit e le immagini generate.</p>
+                    
+                    <div class="dashboard-tabs">
+                        <button class="tab-btn active" onclick="showTab('photos')">Le Mie Foto</button>
+                        <button class="tab-btn" onclick="showTab('outfits')">I Miei Outfit</button>
+                        <button class="tab-btn" onclick="showTab('generated')">Immagini Generate</button>
+                    </div>
+                    
+                    <div id="tab-photos" class="tab-content active">
+                        <div class="section-header">
+                            <h4>Le Mie Foto</h4>
+                            <button class="btn btn-primary" onclick="showUploadPhotoForm()">+ Carica Foto</button>
+                        </div>
+                        <div id="photos-list" class="photos-grid">
+                            <div class="loading">Caricamento foto...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="tab-outfits" class="tab-content">
+                        <div class="section-header">
+                            <h4>I Miei Outfit</h4>
+                            <button class="btn btn-primary" onclick="showCreateOutfitForm()">+ Crea Outfit</button>
+                        </div>
+                        <div id="outfits-list">
+                            <p class="empty-state">Funzionalità outfit in sviluppo...</p>
+                        </div>
+                    </div>
+                    
+                    <div id="tab-generated" class="tab-content">
+                        <div class="section-header">
+                            <h4>Immagini Generate</h4>
+                            <button class="btn btn-primary" onclick="showGenerateImageForm()">+ Genera Immagine AI</button>
+                        </div>
+                        <div id="generated-images-list" class="generated-images-grid">
+                            <div class="loading">Caricamento immagini...</div>
+                        </div>
                     </div>
                 </div>
+                
+                <script>
+                    // Carica script pagine
+                    (function() {
+                        function loadScript(src, callback) {
+                            if (document.querySelector('script[src="' + src + '"]')) {
+                                if (callback) callback();
+                                return;
+                            }
+                            const script = document.createElement('script');
+                            script.src = src;
+                            script.onload = callback;
+                            document.head.appendChild(script);
+                        }
+                        
+                        loadScript('pages/customer_photos.js', () => {
+                            if (window.loadCustomerPhotos) window.loadCustomerPhotos();
+                        });
+                        loadScript('pages/generated_images.js', () => {
+                            if (window.loadGeneratedImages) window.loadGeneratedImages();
+                        });
+                    })();
+                </script>
             `}
         </div>
     `;
@@ -346,6 +402,69 @@ document.addEventListener('click', async (e) => {
         router.navigate('/');
     }
 });
+
+// Tab Management
+function showTab(tabName) {
+    // Nascondi tutti i tab content
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Rimuovi active da tutti i tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Mostra il tab selezionato
+    const selectedTab = document.getElementById(`tab-${tabName}`);
+    const selectedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(
+        btn => btn.textContent.includes(getTabTitle(tabName))
+    );
+    
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    }
+    if (selectedBtn) {
+        selectedBtn.classList.add('active');
+    }
+}
+
+function getTabTitle(tabName) {
+    const titles = {
+        'photos': 'Le Mie Foto',
+        'outfits': 'I Miei Outfit',
+        'generated': 'Immagini Generate'
+    };
+    return titles[tabName] || '';
+}
+
+// Utility per messaggi
+function showSuccess(message) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'success-message show';
+    msgDiv.textContent = message;
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+        mainContent.insertBefore(msgDiv, mainContent.firstChild);
+        setTimeout(() => msgDiv.remove(), 5000);
+    }
+}
+
+function showError(message) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'error-message show';
+    msgDiv.textContent = message;
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+        mainContent.insertBefore(msgDiv, mainContent.firstChild);
+        setTimeout(() => msgDiv.remove(), 5000);
+    }
+}
+
+// Esporta funzioni globali
+window.showTab = showTab;
+window.showSuccess = showSuccess;
+window.showError = showError;
 
 // Inizializza app
 document.addEventListener('DOMContentLoaded', async () => {
