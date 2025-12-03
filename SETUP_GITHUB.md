@@ -1,109 +1,40 @@
-# Guida Setup GitHub con GitHub CLI
+# Guida Setup GitHub con MCP
 
-Questa guida ti aiuterà a configurare GitHub per il progetto CRM Shops usando GitHub CLI (`gh`).
+Questa guida ti aiuterà a configurare GitHub per il progetto CRM Shops usando MCP GitHub (già configurato in Cursor).
 
 ## Prerequisiti
 
-- GitHub CLI installato (`gh`)
-- Account GitHub esistente o da creare
+- MCP GitHub configurato in Cursor (già presente)
+- Account GitHub autenticato tramite MCP
 
-## Installazione GitHub CLI (se necessario)
+## Repository già creato! ✅
 
-Se non hai GitHub CLI installato:
+Il repository è stato creato automaticamente tramite MCP GitHub:
+- **URL**: https://github.com/crmshop/crm-shops
+- **Nome**: crm-shops
+- **Descrizione**: Sistema CRM per negozi con AI generativa
 
-**macOS:**
-```bash
-brew install gh
-```
+## Configurazione Git locale
 
-**Linux:**
-```bash
-# Debian/Ubuntu
-sudo apt install gh
-
-# Fedora
-sudo dnf install gh
-```
-
-**Windows:**
-```bash
-# Con Chocolatey
-choco install gh
-
-# Con Scoop
-scoop install gh
-```
-
-## Passi per configurare GitHub
-
-### 1. Autenticarsi con GitHub CLI
-
-1. Esegui il login:
-   ```bash
-   gh auth login
-   ```
-
-2. Segui le istruzioni interattive:
-   - Scegli **GitHub.com**
-   - Scegli **HTTPS** come protocollo
-   - Scegli **Login with a web browser** (più semplice)
-   - Autorizza GitHub CLI nel browser
-   - Oppure usa **Paste an authentication token** se preferisci
-
-3. Verifica l'autenticazione:
-   ```bash
-   gh auth status
-   ```
-
-### 2. Configurare Git locale (se non già fatto)
+Se non già fatto, configura Git:
 
 ```bash
 git config --global user.name "Il Tuo Nome"
 git config --global user.email "tua-email@example.com"
 ```
 
-### 3. Creare repository su GitHub
+## Collegare repository locale e fare push
 
-Nel terminale, nella directory del progetto:
+Il repository è già stato creato su GitHub. Ora collega il repository locale:
 
 ```bash
 cd /Users/mariofo/Python_projects/CRM_shops
 
-# Crea repository pubblico
-gh repo create crm-shops --public --description "Sistema CRM per negozi con AI generativa" --source=. --remote=origin --push
+# Aggiungi remote (se non già presente)
+git remote add origin https://github.com/crmshop/crm-shops.git
 
-# OPPURE per repository privato
-gh repo create crm-shops --private --description "Sistema CRM per negozi con AI generativa" --source=. --remote=origin --push
-```
-
-Questo comando:
-- ✅ Crea il repository su GitHub
-- ✅ Aggiunge il remote `origin`
-- ✅ Fa il push del codice esistente
-
-### 4. Verificare la configurazione
-
-```bash
 # Verifica remote
 git remote -v
-
-# Verifica stato
-git status
-
-# Apri repository su GitHub nel browser
-gh repo view --web
-```
-
-### 5. (Alternativa) Se il repository esiste già
-
-Se preferisci creare il repository manualmente e poi collegarlo:
-
-```bash
-# Crea repository su GitHub (senza push automatico)
-gh repo create crm-shops --public --description "Sistema CRM per negozi con AI generativa"
-
-# Aggiungi remote
-git remote add origin https://github.com/TUO-USERNAME/crm-shops.git
 
 # Fai commit e push
 git add .
@@ -111,6 +42,29 @@ git commit -m "Initial commit: Setup progetto CRM Shops"
 git branch -M main
 git push -u origin main
 ```
+
+### Risoluzione problemi autenticazione
+
+Se ottieni errori di autenticazione durante il push:
+
+**Opzione 1: Usa Personal Access Token**
+1. Crea un token su GitHub: Settings → Developer settings → Personal access tokens
+2. Usa il token come password quando Git lo richiede
+3. Oppure configura Git credential helper:
+   ```bash
+   git config --global credential.helper osxkeychain  # macOS
+   ```
+
+**Opzione 2: Usa SSH**
+```bash
+# Cambia remote a SSH
+git remote set-url origin git@github.com:crmshop/crm-shops.git
+```
+
+## Verificare repository
+
+Visita il repository su GitHub:
+https://github.com/crmshop/crm-shops
 
 ## Setup rapido con script
 
