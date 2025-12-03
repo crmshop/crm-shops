@@ -66,6 +66,22 @@ python main.py
 
 Il server sarà disponibile su `http://localhost:8000`
 
+6. Avviare il frontend (in un altro terminale):
+```bash
+# Opzione 1: Usando lo script
+./start_frontend.sh
+
+# Opzione 2: Con Python
+cd frontend
+python3 -m http.server 5500
+
+# Opzione 3: Con PHP
+cd frontend
+php -S localhost:5500
+```
+
+Il frontend sarà disponibile su `http://localhost:5500`
+
 ### Endpoint disponibili
 
 - `GET /` - Informazioni API
