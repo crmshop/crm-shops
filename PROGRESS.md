@@ -76,12 +76,21 @@
 - ✅ Generazione prompt personalizzati
 - ✅ Integrazione con route immagini generate
 
-### 6. Documentazione
+### 6. Storage Supabase
+- ✅ Bucket `customer-photos` creato e configurato (pubblico)
+- ✅ Bucket `product-images` creato e configurato (pubblico)
+- ✅ Bucket `generated-images` creato e configurato (pubblico)
+- ✅ Script test Storage creato (`scripts/test_storage.py`)
+- ✅ Documentazione test Storage (`docs/STORAGE_TEST.md`)
+
+### 7. Documentazione
 - ✅ README.md completo
 - ✅ API_DOCUMENTATION.md con tutti gli endpoint
 - ✅ DATABASE_SCHEMA.md con schema completo
 - ✅ SECURITY_NOTES.md con note sicurezza
 - ✅ SUPABASE_CREDENTIALS.md con credenziali
+- ✅ SETUP_STORAGE.md guida setup Storage
+- ✅ DEPLOY.md guida deploy Render
 - ✅ Swagger UI automatico su `/docs`
 
 ## 📊 Statistiche
@@ -97,9 +106,9 @@
 ### Priorità Alta
 - [ ] Implementare chiamate reali a Banana Pro API
 - [ ] Implementare chiamate reali a Gemini API
-- [ ] Configurare Storage buckets su Supabase
+- [x] Configurare Storage buckets su Supabase ✅ COMPLETATO
 - [ ] Abilitare Row Level Security (RLS)
-- [ ] Implementare frontend base
+- [x] Implementare frontend base ✅ COMPLETATO
 
 ### Priorità Media
 - [ ] Sistema di coda per richieste AI
@@ -136,8 +145,8 @@
 
 - L'autenticazione è implementata ma RLS non è ancora abilitato su Supabase
 - I servizi AI sono placeholder - implementare chiamate reali
-- Storage buckets devono essere configurati manualmente su Supabase
-- Il frontend è ancora minimale - da sviluppare
+- ✅ Storage buckets configurati su Supabase (customer-photos, product-images, generated-images)
+- ✅ Frontend base implementato con routing, autenticazione e dashboard
 
 ## 🔗 Link Utili
 
