@@ -281,13 +281,69 @@ router.addRoute('/dashboard', () => {
             <p>Ruolo: <strong>${state.user.role}</strong></p>
             
             ${isShopOwner ? `
-                <div class="dashboard-section">
-                    <h3>Gestione Negozio</h3>
-                    <div class="dashboard-actions">
-                        <a href="#" data-route="/shops" class="btn btn-primary">I Miei Negozi</a>
-                        <a href="#" data-route="/products" class="btn btn-primary">Gestisci Prodotti</a>
+                <div class="dashboard-negoziante">
+                    <h3>Area Negozio</h3>
+                    <p>Gestisci i tuoi negozi, prodotti e clienti.</p>
+                    
+                    <div class="dashboard-tabs">
+                        <button class="tab-btn active" onclick="showShopTab('shops')">I Miei Negozi</button>
+                        <button class="tab-btn" onclick="showShopTab('products')">Prodotti</button>
+                        <button class="tab-btn" onclick="showShopTab('customers')">Clienti</button>
+                    </div>
+                    
+                    <div id="shop-tab-shops" class="tab-content active">
+                        <div class="section-header">
+                            <h4>I Miei Negozi</h4>
+                            <button class="btn btn-primary" onclick="showCreateShopForm()">+ Nuovo Negozio</button>
+                        </div>
+                        <div id="shops-list">
+                            <p class="empty-state">Caricamento negozi...</p>
+                        </div>
+                    </div>
+                    
+                    <div id="shop-tab-products" class="tab-content">
+                        <div class="section-header">
+                            <h4>Gestione Prodotti</h4>
+                            <button class="btn btn-primary" onclick="showCreateProductForm()">+ Nuovo Prodotto</button>
+                        </div>
+                        <div id="products-list" class="products-grid">
+                            <div class="loading">Caricamento prodotti...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="shop-tab-customers" class="tab-content">
+                        <div class="section-header">
+                            <h4>Gestione Clienti</h4>
+                            <button class="btn btn-primary" onclick="showCreateCustomerForm()">+ Nuovo Cliente</button>
+                        </div>
+                        <div id="customers-list" class="customers-grid">
+                            <div class="loading">Caricamento clienti...</div>
+                        </div>
                     </div>
                 </div>
+                
+                <script>
+                    // Carica script pagine negoziante
+                    (function() {
+                        function loadScript(src, callback) {
+                            if (document.querySelector('script[src="' + src + '"]')) {
+                                if (callback) callback();
+                                return;
+                            }
+                            const script = document.createElement('script');
+                            script.src = src;
+                            script.onload = callback;
+                            document.head.appendChild(script);
+                        }
+                        
+                        loadScript('pages/products.js', () => {
+                            if (window.loadProducts) window.loadProducts();
+                        });
+                        loadScript('pages/shop_customers.js', () => {
+                            if (window.loadCustomers) window.loadCustomers();
+                        });
+                    })();
+                </script>
             ` : `
                 <div class="dashboard-cliente">
                     <h3>Area Cliente</h3>
@@ -403,7 +459,7 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// Tab Management
+// Tab Management per cliente
 function showTab(tabName) {
     // Nascondi tutti i tab content
     document.querySelectorAll('.tab-content').forEach(tab => {
@@ -461,8 +517,48 @@ function showError(message) {
     }
 }
 
+// Tab Management per negoziante
+function showShopTab(tabName) {
+    document.querySelectorAll('#shop-tab-' + tabName.split('-')[0] + ' ~ .tab-content, .tab-content[id^="shop-tab-"]').forEach(tab => {
+        if (tab.id.startsWith('shop-tab-')) {
+            tab.classList.remove('active');
+        }
+    });
+    
+    document.querySelectorAll('.dashboard-negoziante .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const selectedTab = document.getElementById(`shop-tab-${tabName}`);
+    const selectedBtn = Array.from(document.querySelectorAll('.dashboard-negoziante .tab-btn')).find(
+        btn => {
+            const titles = {
+                'shops': 'I Miei Negozi',
+                'products': 'Prodotti',
+                'customers': 'Clienti'
+            };
+            return btn.textContent.includes(titles[tabName] || '');
+        }
+    );
+    
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    }
+    if (selectedBtn) {
+        selectedBtn.classList.add('active');
+    }
+    
+    // Carica dati quando si cambia tab
+    if (tabName === 'products' && window.loadProducts) {
+        window.loadProducts();
+    } else if (tabName === 'customers' && window.loadCustomers) {
+        window.loadCustomers();
+    }
+}
+
 // Esporta funzioni globali
 window.showTab = showTab;
+window.showShopTab = showShopTab;
 window.showSuccess = showSuccess;
 window.showError = showError;
 

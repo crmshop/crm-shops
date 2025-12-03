@@ -526,6 +526,65 @@ footer {
     display: block;
 }
 
+/* Customer Cards */
+.customer-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1.5rem;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.customer-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.customer-header {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.customer-header h3 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+}
+
+.customer-email {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.customer-info {
+    margin-bottom: 1rem;
+}
+
+.customer-info p {
+    margin: 0.5rem 0;
+    color: #555;
+}
+
+.customer-date {
+    color: #999;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.customer-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.customers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     header {
