@@ -1,5 +1,8 @@
 // Frontend principale per CRM Shops
-const API_BASE_URL = 'http://localhost:8000';
+// Carica configurazione (deve essere incluso dopo config.js)
+const API_BASE_URL = window.CONFIG?.API_BASE_URL || 'http://localhost:8000';
+const AUTH_TOKEN_KEY = window.CONFIG?.AUTH_TOKEN_KEY || 'crm_shops_auth_token';
+const USER_ROLE_KEY = window.CONFIG?.USER_ROLE_KEY || 'crm_shops_user_role';
 
 // Stato applicazione
 const state = {
