@@ -97,12 +97,12 @@ function renderStats() {
             // Inizializza grafici dopo il rendering
             setTimeout(() => {
                 if (typeof Chart !== 'undefined') {
-                    initStatsChart();
+                    window.initStatsChart();
                 } else {
                     // Carica Chart.js e poi inizializza
                     const script = document.createElement('script');
                     script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-                    script.onload = initStatsChart;
+                    script.onload = () => window.initStatsChart();
                     document.head.appendChild(script);
                 }
             }, 100);
@@ -110,6 +110,88 @@ function renderStats() {
     `;
 }
 
+function initStatsChart() {
+    if (!currentStats || typeof Chart === 'undefined') return;
+    
+    const ctx = document.getElementById('stats-overview-chart');
+    if (!ctx) return;
+    
+    // Distruggi grafico esistente se presente
+    if (window.statsChart) {
+        window.statsChart.destroy();
+    }
+    
+    window.statsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Clienti', 'Prodotti', 'Foto', 'Immagini Generate'],
+            datasets: [{
+                label: 'Statistiche Negozio',
+                data: [
+                    currentStats.total_customers,
+                    currentStats.total_products,
+                    currentStats.total_photos,
+                    currentStats.total_generated_images
+                ],
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.6)',
+                    'rgba(75, 192, 192, 0.6)',
+                    'rgba(255, 206, 86, 0.6)',
+                    'rgba(153, 102, 255, 0.6)'
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(153, 102, 255, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: true,
+                    text: 'Panoramica Statistiche'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+async function loadShopsForStats() {
+    try {
+        const data = await apiCall('/api/shops/');
+        const shops = data.shops || data || [];
+        
+        if (shops.length === 0) {
+            document.getElementById('stats-content').innerHTML = 
+                '<p class="empty-state">Crea un negozio per vedere le statistiche</p>';
+            return;
+        }
+        
+        // Carica statistiche del primo negozio
+        await loadShopStats(shops[0].id, '30days');
+    } catch (error) {
+        console.error('Errore caricamento negozi per statistiche:', error);
+    }
+}
+
 // Esporta funzioni per uso globale
 window.loadShopStats = loadShopStats;
+window.loadShopsForStats = loadShopsForStats;
+window.initStatsChart = initStatsChart;
 
