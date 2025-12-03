@@ -7,6 +7,7 @@ from typing import Optional, List
 from uuid import UUID
 from supabase import Client
 from backend.database import get_supabase
+from backend.middleware.auth import get_current_user
 import logging
 
 logger = logging.getLogger(__name__)
