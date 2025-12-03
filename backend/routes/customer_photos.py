@@ -60,7 +60,7 @@ async def get_customer_photo(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
-    """Ottieni dettagli di una foto"""
+    """Ottieni dettagli di una foto (supporta sia clienti esterni che clienti negozio)"""
     try:
         result = supabase.table("customer_photos").select("*").eq("id", str(photo_id)).execute()
         
@@ -72,12 +72,34 @@ async def get_customer_photo(
         
         photo = result.data[0]
         
-        # Verifica permessi: i clienti possono vedere solo le proprie foto
-        if current_user["role"] == "cliente" and photo["user_id"] != current_user["id"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Accesso negato"
-            )
+        # Verifica permessi
+        if current_user["role"] == "cliente":
+            # I clienti esterni possono vedere solo le proprie foto (user_id)
+            if photo.get("user_id") != current_user["id"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Accesso negato"
+                )
+        elif current_user["role"] == "negoziante":
+            # I negozianti possono vedere foto dei loro clienti negozio
+            if photo.get("customer_id"):
+                # Verifica che il cliente appartenga a un negozio del negoziante
+                customer_check = supabase.from_('shop_customers').select('shop_id').eq('id', photo['customer_id']).single().execute()
+                if customer_check.data:
+                    shop_check = supabase.from_('shops').select('owner_id').eq('id', customer_check.data['shop_id']).single().execute()
+                    if not shop_check.data or shop_check.data['owner_id'] != current_user['id']:
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Accesso negato"
+                        )
+            elif photo.get("shop_id"):
+                # Foto di cliente esterno associata a negozio
+                shop_check = supabase.from_('shops').select('owner_id').eq('id', photo['shop_id']).single().execute()
+                if not shop_check.data or shop_check.data['owner_id'] != current_user['id']:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Accesso negato"
+                    )
         
         return {"photo": photo}
     except HTTPException:

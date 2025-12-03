@@ -289,6 +289,7 @@ router.addRoute('/dashboard', () => {
                         <button class="tab-btn active" onclick="showShopTab('shops')">I Miei Negozi</button>
                         <button class="tab-btn" onclick="showShopTab('products')">Prodotti</button>
                         <button class="tab-btn" onclick="showShopTab('customers')">Clienti</button>
+                        <button class="tab-btn" onclick="showShopTab('stats')">Statistiche</button>
                     </div>
                     
                     <div id="shop-tab-shops" class="tab-content active">
@@ -320,6 +321,12 @@ router.addRoute('/dashboard', () => {
                             <div class="loading">Caricamento clienti...</div>
                         </div>
                     </div>
+                    
+                    <div id="shop-tab-stats" class="tab-content">
+                        <div id="stats-content">
+                            <p class="empty-state">Seleziona un negozio per vedere le statistiche</p>
+                        </div>
+                    </div>
                 </div>
                 
                 <script>
@@ -341,6 +348,9 @@ router.addRoute('/dashboard', () => {
                         });
                         loadScript('pages/shop_customers.js', () => {
                             if (window.loadCustomers) window.loadCustomers();
+                        });
+                        loadScript('pages/shop_stats.js', () => {
+                            // Le statistiche vengono caricate quando si seleziona un negozio
                         });
                     })();
                 </script>
@@ -553,6 +563,12 @@ function showShopTab(tabName) {
         window.loadProducts();
     } else if (tabName === 'customers' && window.loadCustomers) {
         window.loadCustomers();
+    } else if (tabName === 'stats') {
+        // Carica statistiche del primo negozio disponibile
+        // In futuro, permettere selezione negozio
+        if (window.loadShopsForStats) {
+            window.loadShopsForStats();
+        }
     }
 }
 

@@ -333,9 +333,44 @@ async function uploadPhotoForCustomer(customerId) {
     }
 }
 
-function viewCustomerPhotos(customerId) {
-    // TODO: Implementare visualizzazione foto cliente
-    alert('Visualizzazione foto cliente - da implementare');
+async function viewCustomerPhotos(customerId) {
+    try {
+        const data = await apiCall(`/api/customers/${customerId}/photos`);
+        const photos = data.photos || [];
+        
+        const modalHTML = `
+            <div class="modal" id="view-customer-photos-modal">
+                <div class="modal-content large-modal">
+                    <span class="close" onclick="closeViewPhotosModal()">&times;</span>
+                    <h2>Foto Cliente</h2>
+                    <div id="customer-photos-grid" class="photos-grid">
+                        ${photos.length === 0 
+                            ? '<p class="empty-state">Nessuna foto caricata per questo cliente.</p>'
+                            : photos.map(photo => `
+                                <div class="photo-card">
+                                    <img src="${photo.image_url}" alt="Foto cliente" class="photo-image"
+                                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'200\\'%3E%3Crect fill=\\'%23ddd\\' width=\\'200\\' height=\\'200\\'/%3E%3Ctext fill=\\'%23999\\' font-family=\\'sans-serif\\' font-size=\\'14\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\'%3EImmagine%3C/text%3E%3C/svg%3E'">
+                                    <div class="photo-info">
+                                        <p class="photo-angle">Angolo: ${photo.angle || 'Non specificato'}</p>
+                                        <p class="photo-date">Caricata: ${new Date(photo.uploaded_at).toLocaleDateString('it-IT')}</p>
+                                    </div>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    } catch (error) {
+        showError('Errore nel caricamento foto: ' + error.message);
+    }
+}
+
+function closeViewPhotosModal() {
+    const modal = document.getElementById('view-customer-photos-modal');
+    if (modal) modal.remove();
 }
 
 function closeCustomerModal() {
@@ -361,5 +396,6 @@ window.viewCustomerPhotos = viewCustomerPhotos;
 window.closeCustomerModal = closeCustomerModal;
 window.closeEditCustomerModal = closeEditCustomerModal;
 window.closeUploadCustomerPhotoModal = closeUploadCustomerPhotoModal;
+window.closeViewPhotosModal = closeViewPhotosModal;
 window.loadCustomers = loadCustomers;
 
