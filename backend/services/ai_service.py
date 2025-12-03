@@ -6,9 +6,7 @@ from typing import Optional, Dict, Any
 from backend.config import settings
 import httpx
 import logging
-import base64
-from io import BytesIO
-from PIL import Image
+# from PIL import Image  # Da aggiungere quando necessario per processing immagini
 
 logger = logging.getLogger(__name__)
 
