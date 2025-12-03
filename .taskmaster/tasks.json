@@ -1,0 +1,837 @@
+{
+  "metadata": {
+    "version": "1.0.1",
+    "created": "2025-01-27",
+    "lastModified": "2025-12-03",
+    "projectName": "CRM Shops",
+    "description": "Sistema CRM per negozi con AI generativa per visualizzazione abbigliamento su clienti. Deploy su Render con repository GitHub."
+  },
+  "tags": {
+    "master": {
+      "name": "master",
+      "description": "Task principali del progetto CRM Shops",
+      "created": "2025-01-27",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Setup ambiente di sviluppo e infrastruttura base",
+          "description": "Configurare l'ambiente di sviluppo con tutte le dipendenze necessarie e la struttura base del progetto",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [],
+          "details": "Configurare l'ambiente Python, installare dipendenze, configurare Supabase (PostgreSQL + Storage), strutturare la cartella del progetto con separazione frontend/backend, configurare variabili d'ambiente. Creare nuovo account GitHub e repository per il progetto, configurare Git con il nuovo account, inizializzare repository locale, configurare .gitignore appropriato, creare branch principale (main/master).",
+          "testStrategy": "Verificare che l'ambiente si avvii correttamente, che le connessioni a Supabase funzionino, che tutte le variabili d'ambiente siano configurate. Verificare che il repository GitHub sia creato correttamente, che Git sia configurato, che i commit funzionino.",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Configurare ambiente Python e virtual environment",
+              "description": "Creare virtual environment Python e installare dipendenze base",
+              "status": "pending",
+              "details": "Creare venv, installare pip, creare requirements.txt con dipendenze base (Flask/FastAPI, Supabase client, etc.)",
+              "testStrategy": "Verificare che venv funzioni, che pip installi correttamente"
+            },
+            {
+              "id": 2,
+              "title": "Configurare account Supabase e ottenere credenziali",
+              "description": "Creare progetto Supabase e configurare PostgreSQL + Storage",
+              "status": "pending",
+              "details": "Creare account Supabase, creare nuovo progetto, ottenere URL e API keys, configurare Storage buckets per immagini",
+              "testStrategy": "Verificare connessione a Supabase, testare accesso Storage"
+            },
+            {
+              "id": 3,
+              "title": "Strutturare cartelle progetto (frontend/backend)",
+              "description": "Creare struttura directory separata per frontend e backend",
+              "status": "pending",
+              "details": "Creare cartelle: frontend/, backend/, creare struttura base per entrambi, configurare file di configurazione separati",
+              "testStrategy": "Verificare che la struttura sia corretta e organizzata"
+            },
+            {
+              "id": 4,
+              "title": "Configurare variabili d'ambiente (.env)",
+              "description": "Creare file .env con tutte le variabili necessarie",
+              "status": "pending",
+              "details": "Creare .env con SUPABASE_URL, SUPABASE_KEY, API keys per AI services, altre configurazioni",
+              "testStrategy": "Verificare che tutte le variabili siano caricate correttamente"
+            },
+            {
+              "id": 5,
+              "title": "Creare nuovo account GitHub e repository",
+              "description": "Creare account GitHub e repository pubblico/privato per il progetto",
+              "status": "pending",
+              "details": "Registrare nuovo account GitHub, creare repository 'crm-shops', scegliere pubblico o privato",
+              "testStrategy": "Verificare che il repository sia accessibile"
+            },
+            {
+              "id": 6,
+              "title": "Configurare Git locale e inizializzare repository",
+              "description": "Configurare Git con nuovo account e inizializzare repository locale",
+              "status": "pending",
+              "details": "Configurare git config (user.name, user.email), git init, creare .gitignore appropriato, primo commit",
+              "testStrategy": "Verificare che Git sia configurato correttamente, testare commit"
+            },
+            {
+              "id": 7,
+              "title": "Collegare repository locale a GitHub",
+              "description": "Fare push del repository locale su GitHub",
+              "status": "pending",
+              "details": "Aggiungere remote origin, creare branch main/master, fare push iniziale",
+              "testStrategy": "Verificare che il codice sia su GitHub correttamente"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Database schema e modelli dati",
+          "description": "Progettare e implementare lo schema del database PostgreSQL per gestire clienti, negozi, prodotti, immagini e statistiche",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [1],
+          "details": "Creare tabelle per: utenti (clienti e negozianti), negozi, prodotti/capi, foto clienti, immagini generate, outfit proposti, statistiche acquisti, configurazioni prompt. Definire relazioni e vincoli. Preparare migrazioni database.",
+          "testStrategy": "Verificare che tutte le tabelle siano create correttamente, che le relazioni funzionino, che i vincoli siano applicati, testare query base.",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Progettare schema database completo",
+              "description": "Creare diagramma ER e definire tutte le tabelle necessarie",
+              "status": "pending",
+              "details": "Definire tabelle: users (con ruolo cliente/negoziante), shops, products, customer_photos, generated_images, outfits, purchases, statistics, prompts. Definire relazioni e chiavi esterne.",
+              "testStrategy": "Verificare che lo schema sia completo e coerente"
+            },
+            {
+              "id": 2,
+              "title": "Creare tabella users e autenticazione",
+              "description": "Implementare tabella utenti con ruoli e integrazione Supabase Auth",
+              "status": "pending",
+              "details": "Creare tabella users con colonne: id, email, role (cliente/negoziante), created_at, updated_at. Integrare con Supabase Auth.",
+              "testStrategy": "Testare creazione utenti, verificare ruoli"
+            },
+            {
+              "id": 3,
+              "title": "Creare tabella shops (negozi)",
+              "description": "Implementare tabella per gestire i negozi",
+              "status": "pending",
+              "details": "Colonne: id, name, owner_id (FK users), address, phone, email, created_at",
+              "testStrategy": "Testare CRUD negozi"
+            },
+            {
+              "id": 4,
+              "title": "Creare tabella products (prodotti/capi)",
+              "description": "Implementare tabella prodotti con categorie e metadati",
+              "status": "pending",
+              "details": "Colonne: id, shop_id (FK), name, category (vestiti/scarpe/accessori), season, occasion, style, price, image_url, available, created_at",
+              "testStrategy": "Testare CRUD prodotti, verificare categorie"
+            },
+            {
+              "id": 5,
+              "title": "Creare tabella customer_photos",
+              "description": "Implementare tabella per foto clienti caricate",
+              "status": "pending",
+              "details": "Colonne: id, user_id (FK), shop_id (FK), image_url (Supabase Storage), angle, consent_given, uploaded_at",
+              "testStrategy": "Testare associazione foto-cliente"
+            },
+            {
+              "id": 6,
+              "title": "Creare tabella generated_images",
+              "description": "Implementare tabella per immagini generate dall'AI",
+              "status": "pending",
+              "details": "Colonne: id, customer_photo_id (FK), product_id (FK), outfit_id (FK), image_url, prompt_used, scenario, generated_at",
+              "testStrategy": "Testare salvataggio immagini generate"
+            },
+            {
+              "id": 7,
+              "title": "Creare tabella outfits",
+              "description": "Implementare tabella per outfit creati",
+              "status": "pending",
+              "details": "Colonne: id, user_id (FK), shop_id (FK), name, product_ids (array), created_at",
+              "testStrategy": "Testare creazione outfit"
+            },
+            {
+              "id": 8,
+              "title": "Creare tabelle statistiche e acquisti",
+              "description": "Implementare tabelle per tracking statistiche e acquisti",
+              "status": "pending",
+              "details": "Tabelle: purchases (id, user_id, product_id, outfit_id, purchase_date), statistics (id, shop_id, metric_name, value, date)",
+              "testStrategy": "Testare inserimento e query statistiche"
+            },
+            {
+              "id": 9,
+              "title": "Creare tabella prompts",
+              "description": "Implementare tabella per prompt predefiniti",
+              "status": "pending",
+              "details": "Colonne: id, shop_id (FK), category, base_prompt, variables, created_at",
+              "testStrategy": "Testare gestione prompt"
+            },
+            {
+              "id": 10,
+              "title": "Creare indici e ottimizzazioni",
+              "description": "Aggiungere indici per query frequenti",
+              "status": "pending",
+              "details": "Indici su: user_id, shop_id, product_id, category, created_at per performance",
+              "testStrategy": "Verificare performance query"
+            },
+            {
+              "id": 11,
+              "title": "Creare migrazioni database",
+              "description": "Preparare script di migrazione per tutte le tabelle",
+              "status": "pending",
+              "details": "Creare file SQL di migrazione, script per rollback, documentazione schema",
+              "testStrategy": "Testare migrazioni su database di test"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Sistema di autenticazione e autorizzazione",
+          "description": "Implementare login/logout per clienti e negozianti con gestione sessioni e ruoli",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [2],
+          "details": "Implementare autenticazione con Supabase Auth, gestione sessioni, ruoli utente (cliente/negoziante), middleware per protezione route, gestione consenso GDPR per foto.",
+          "testStrategy": "Testare login/logout per entrambi i ruoli, verificare protezione route, testare gestione sessioni, verificare consenso GDPR."
+        },
+        {
+          "id": 4,
+          "title": "Sistema upload e gestione foto clienti",
+          "description": "Implementare funzionalità per caricare e gestire foto dei clienti da diverse angolazioni",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [2, 3],
+          "details": "Creare interfaccia upload foto multiple, validazione immagini, salvataggio su Supabase Storage, associazione foto-cliente nel database, gestione consenso cliente, preview immagini caricate.",
+          "testStrategy": "Testare upload singole e multiple foto, verificare validazione formati, testare salvataggio su storage, verificare associazione nel database."
+        },
+        {
+          "id": 5,
+          "title": "Catalogo prodotti e gestione capi negozio",
+          "description": "Sistema per gestire il catalogo prodotti del negozio (fisico o e-commerce) con categorie e metadati",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [2, 3],
+          "details": "CRUD prodotti, categorie (vestiti, scarpe, accessori), upload immagini prodotti, metadati (stagione, occasione, stile), gestione disponibilità, ricerca e filtri prodotti.",
+          "testStrategy": "Testare creazione/modifica/eliminazione prodotti, verificare categorie, testare ricerca e filtri, verificare upload immagini prodotti."
+        },
+        {
+          "id": 6,
+          "title": "Sistema selezione capi e creazione outfit",
+          "description": "Permettere a clienti e negozianti di selezionare capi e creare outfit personalizzati",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [5],
+          "details": "Interfaccia selezione capi multipli, creazione outfit (combinazioni), salvataggio outfit preferiti, proposta outfit automatica da negoziante, preview outfit.",
+          "testStrategy": "Testare selezione capi, creazione outfit, salvataggio preferiti, verificare proposta outfit automatica."
+        },
+        {
+          "id": 7,
+          "title": "Integrazione AI generativa (Banana Pro + Gemini)",
+          "description": "Integrare servizi AI per generare immagini di clienti che indossano i capi selezionati",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [4, 5, 6],
+          "details": "Configurare API Banana Pro e Gemini, creare wrapper per chiamate AI, gestione upload immagini a servizi AI, gestione risposte e download immagini generate, gestione errori e retry.",
+          "testStrategy": "Testare chiamate API AI, verificare generazione immagini, testare gestione errori, verificare qualità output.",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Configurare account e API keys per Banana Pro",
+              "description": "Registrarsi su Banana Pro e ottenere credenziali API",
+              "status": "pending",
+              "details": "Creare account Banana Pro, ottenere API key, configurare variabili d'ambiente, testare connessione base",
+              "testStrategy": "Verificare che le credenziali funzionino"
+            },
+            {
+              "id": 2,
+              "title": "Configurare account e API keys per Google Gemini",
+              "description": "Registrarsi su Google Cloud e configurare Gemini API",
+              "status": "pending",
+              "details": "Creare progetto Google Cloud, abilitare Gemini API, ottenere API key, configurare variabili d'ambiente",
+              "testStrategy": "Verificare che le credenziali funzionino"
+            },
+            {
+              "id": 3,
+              "title": "Creare wrapper/modulo per chiamate Banana Pro",
+              "description": "Implementare classe/modulo per gestire chiamate a Banana Pro",
+              "status": "pending",
+              "details": "Creare funzione per upload immagini cliente, funzione per generare immagini con capi, gestione formati immagine",
+              "testStrategy": "Testare chiamate API con immagini di esempio"
+            },
+            {
+              "id": 4,
+              "title": "Creare wrapper/modulo per chiamate Gemini",
+              "description": "Implementare classe/modulo per gestire chiamate a Gemini",
+              "status": "pending",
+              "details": "Creare funzione per generazione immagini, integrazione con prompt, gestione risposte",
+              "testStrategy": "Testare chiamate API Gemini"
+            },
+            {
+              "id": 5,
+              "title": "Implementare sistema di upload immagini a servizi AI",
+              "description": "Creare funzione per caricare foto cliente e capi ai servizi AI",
+              "status": "pending",
+              "details": "Preparare immagini (resize, formato), upload a Banana Pro/Gemini, ottenere URL temporanei",
+              "testStrategy": "Testare upload con immagini reali"
+            },
+            {
+              "id": 6,
+              "title": "Implementare generazione immagini con prompt",
+              "description": "Creare funzione che combina foto cliente, capi e prompt per generare immagini",
+              "status": "pending",
+              "details": "Combinare foto cliente + immagine capo + prompt personalizzato, chiamare API AI, gestire risposta",
+              "testStrategy": "Testare generazione con diversi input"
+            },
+            {
+              "id": 7,
+              "title": "Implementare download e salvataggio immagini generate",
+              "description": "Creare funzione per scaricare e salvare immagini generate",
+              "status": "pending",
+              "details": "Download immagini da API AI, validazione formato, salvataggio su Supabase Storage, associazione nel database",
+              "testStrategy": "Testare download e salvataggio completo"
+            },
+            {
+              "id": 8,
+              "title": "Implementare gestione errori e retry logic",
+              "description": "Aggiungere gestione errori robusta con retry automatico",
+              "status": "pending",
+              "details": "Gestire timeout, rate limiting, errori API, implementare retry con backoff esponenziale, logging errori",
+              "testStrategy": "Testare scenari di errore e retry"
+            },
+            {
+              "id": 9,
+              "title": "Implementare sistema di coda per richieste AI",
+              "description": "Creare sistema di coda per gestire richieste AI asincrone",
+              "status": "pending",
+              "details": "Implementare coda per richieste AI, gestione stato (pending, processing, completed, failed), notifiche completamento",
+              "testStrategy": "Testare coda con multiple richieste"
+            },
+            {
+              "id": 10,
+              "title": "Ottimizzare qualità output e parametri",
+              "description": "Fine-tuning parametri AI per migliorare qualità immagini",
+              "status": "pending",
+              "details": "Testare diversi parametri (risoluzione, qualità, stile), ottimizzare prompt, confrontare output",
+              "testStrategy": "Verificare qualità immagini generate"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Sistema prompt predefiniti e personalizzazione",
+          "description": "Implementare sistema di prompt predefiniti con possibilità di aggiungere note personalizzate",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [7],
+          "details": "Database prompt predefiniti per diversi tipi di capi/occasioni, interfaccia gestione prompt per negoziante, sistema aggiunta note cliente/negoziante, template prompt dinamici, gestione variabili prompt.",
+          "testStrategy": "Testare creazione/modifica prompt, verificare aggiunta note, testare template dinamici, verificare generazione prompt finali."
+        },
+        {
+          "id": 9,
+          "title": "Sistema generazione ambientazioni contestuali",
+          "description": "Generare immagini/video con ambientazioni appropriate basate sul tipo di capo e occasioni",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [7, 8],
+          "details": "Logica selezione ambientazioni (stagione, occasione, tipo capo), database scenari predefiniti, interfaccia selezione ambiente cliente, generazione prompt con ambientazione, supporto video oltre immagini.",
+          "testStrategy": "Testare selezione automatica ambientazioni, verificare scenari predefiniti, testare selezione manuale cliente, verificare generazione video."
+        },
+        {
+          "id": 10,
+          "title": "Dashboard negoziante e statistiche clienti",
+          "description": "Creare dashboard per negozianti con statistiche clienti, acquisti e dati per marketing",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [2, 3, 5],
+          "details": "Dashboard con statistiche clienti (numero, acquisti, preferenze), visualizzazione storico acquisti, dati per elaborazione immagini promozionali, filtri e report, export dati.",
+          "testStrategy": "Verificare visualizzazione statistiche, testare filtri, verificare report, testare export dati."
+        },
+        {
+          "id": 11,
+          "title": "Sistema salvataggio e gestione immagini generate",
+          "description": "Salvare tutte le immagini generate nell'applicazione per utilizzo successivo",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [7, 9],
+          "details": "Salvataggio immagini su Supabase Storage, associazione immagini a cliente/prodotto/outfit nel database, galleria immagini cliente, galleria immagini negoziante, sistema organizzazione per cartelle/tag.",
+          "testStrategy": "Testare salvataggio immagini, verificare associazioni database, testare gallerie, verificare organizzazione."
+        },
+        {
+          "id": 12,
+          "title": "Sistema promozioni e invio immagini ai clienti",
+          "description": "Permettere ai negozianti di creare e inviare immagini promozionali ai clienti selezionati",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [10, 11],
+          "details": "Selezione clienti target, selezione nuovi prodotti, generazione immagini promozionali con AI, invio via email, integrazione social media (opzionale), tracking invii e apertura.",
+          "testStrategy": "Testare selezione clienti, verificare generazione promozionali, testare invio email, verificare tracking."
+        },
+        {
+          "id": 13,
+          "title": "Frontend HTML/CSS/JavaScript",
+          "description": "Sviluppare interfaccia utente responsive con HTML, CSS e JavaScript",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [1],
+          "details": "Design responsive, interfaccia cliente (upload foto, selezione capi, visualizzazione risultati), interfaccia negoziante (dashboard, gestione prodotti, statistiche), integrazione API backend, gestione stati e routing.",
+          "testStrategy": "Testare responsive design, verificare tutte le interfacce, testare integrazione API, verificare routing.",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Creare struttura base HTML e layout responsive",
+              "description": "Implementare struttura HTML base con CSS responsive",
+              "status": "pending",
+              "details": "Creare index.html, struttura base con header/nav/footer, CSS responsive (mobile-first), media queries",
+              "testStrategy": "Testare su diversi dispositivi e risoluzioni"
+            },
+            {
+              "id": 2,
+              "title": "Implementare sistema di routing frontend",
+              "description": "Creare sistema di routing per navigazione tra pagine",
+              "status": "pending",
+              "details": "Implementare routing client-side (vanilla JS o libreria leggera), gestione URL, navigazione",
+              "testStrategy": "Testare navigazione tra tutte le pagine"
+            },
+            {
+              "id": 3,
+              "title": "Creare pagina login/registrazione",
+              "description": "Implementare interfaccia autenticazione per clienti e negozianti",
+              "status": "pending",
+              "details": "Form login, form registrazione, selezione ruolo (cliente/negoziante), gestione errori, redirect dopo login",
+              "testStrategy": "Testare login/registrazione per entrambi i ruoli"
+            },
+            {
+              "id": 4,
+              "title": "Implementare interfaccia cliente - Upload foto",
+              "description": "Creare pagina per upload foto cliente multiple",
+              "status": "pending",
+              "details": "Drag & drop upload, preview immagini, validazione client-side, progress bar, gestione consenso GDPR",
+              "testStrategy": "Testare upload singole e multiple foto"
+            },
+            {
+              "id": 5,
+              "title": "Implementare interfaccia cliente - Selezione capi",
+              "description": "Creare pagina catalogo prodotti con selezione capi",
+              "status": "pending",
+              "details": "Griglia prodotti, filtri (categoria, stagione, occasione), ricerca, selezione multipla, preview capi",
+              "testStrategy": "Testare selezione e filtri"
+            },
+            {
+              "id": 6,
+              "title": "Implementare interfaccia cliente - Creazione outfit",
+              "description": "Creare pagina per creare e salvare outfit",
+              "status": "pending",
+              "details": "Interfaccia drag & drop per combinare capi, preview outfit, salvataggio outfit preferiti, nome outfit",
+              "testStrategy": "Testare creazione e salvataggio outfit"
+            },
+            {
+              "id": 7,
+              "title": "Implementare interfaccia cliente - Visualizzazione risultati",
+              "description": "Creare pagina per visualizzare immagini generate",
+              "status": "pending",
+              "details": "Galleria immagini generate, filtri per prodotto/outfit/data, download immagini, condivisione",
+              "testStrategy": "Testare visualizzazione e funzionalità galleria"
+            },
+            {
+              "id": 8,
+              "title": "Implementare dashboard negoziante - Overview",
+              "description": "Creare dashboard principale con statistiche principali",
+              "status": "pending",
+              "details": "Card statistiche (clienti totali, prodotti, immagini generate), grafici, filtri data",
+              "testStrategy": "Verificare visualizzazione statistiche corrette"
+            },
+            {
+              "id": 9,
+              "title": "Implementare dashboard negoziante - Gestione prodotti",
+              "description": "Creare interfaccia CRUD prodotti per negoziante",
+              "status": "pending",
+              "details": "Lista prodotti, form creazione/modifica, upload immagini prodotto, eliminazione, ricerca/filtri",
+              "testStrategy": "Testare tutte le operazioni CRUD"
+            },
+            {
+              "id": 10,
+              "title": "Implementare dashboard negoziante - Statistiche dettagliate",
+              "description": "Creare pagina statistiche avanzate con report",
+              "status": "pending",
+              "details": "Grafici clienti, grafici vendite, report prodotti più popolari, export dati (CSV/PDF)",
+              "testStrategy": "Verificare report e export"
+            },
+            {
+              "id": 11,
+              "title": "Implementare integrazione API backend",
+              "description": "Creare moduli JavaScript per chiamate API",
+              "status": "pending",
+              "details": "Funzioni fetch per tutte le API, gestione errori, loading states, gestione token autenticazione",
+              "testStrategy": "Testare tutte le chiamate API"
+            },
+            {
+              "id": 12,
+              "title": "Implementare gestione stato applicazione",
+              "description": "Creare sistema di gestione stato (state management)",
+              "status": "pending",
+              "details": "Gestione stato utente, carrello/outfit temporanei, cache dati, sincronizzazione con backend",
+              "testStrategy": "Verificare che lo stato sia gestito correttamente"
+            },
+            {
+              "id": 13,
+              "title": "Ottimizzare performance e UX",
+              "description": "Migliorare performance e user experience",
+              "status": "pending",
+              "details": "Lazy loading immagini, debounce su ricerca, animazioni smooth, feedback utente, error handling user-friendly",
+              "testStrategy": "Testare performance e UX"
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "title": "Backend API e logica business",
+          "description": "Implementare API REST per tutte le funzionalità e logica business del sistema",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [2, 3],
+          "details": "API REST per autenticazione, gestione prodotti, upload foto, generazione immagini AI, statistiche, promozioni. Logica business separata, validazione input, gestione errori, logging.",
+          "testStrategy": "Testare tutte le API endpoint, verificare validazione, testare gestione errori, verificare logging.",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Configurare framework backend (Flask/FastAPI)",
+              "description": "Scegliere e configurare framework Python per API REST",
+              "status": "pending",
+              "details": "Installare Flask o FastAPI, configurare struttura progetto, setup CORS, configurare logging",
+              "testStrategy": "Verificare che il server si avvii correttamente"
+            },
+            {
+              "id": 2,
+              "title": "Implementare middleware autenticazione",
+              "description": "Creare middleware per proteggere route e verificare token",
+              "status": "pending",
+              "details": "Middleware per verificare token Supabase, estrazione user info, gestione ruoli (cliente/negoziante)",
+              "testStrategy": "Testare protezione route con token validi/invalidi"
+            },
+            {
+              "id": 3,
+              "title": "Implementare API autenticazione",
+              "description": "Creare endpoint per login/logout/registrazione",
+              "status": "pending",
+              "details": "POST /api/auth/login, POST /api/auth/logout, POST /api/auth/register, integrazione Supabase Auth",
+              "testStrategy": "Testare tutti gli endpoint autenticazione"
+            },
+            {
+              "id": 4,
+              "title": "Implementare API gestione prodotti",
+              "description": "Creare endpoint CRUD per prodotti",
+              "status": "pending",
+              "details": "GET /api/products, POST /api/products, PUT /api/products/:id, DELETE /api/products/:id, GET /api/products/:id",
+              "testStrategy": "Testare tutte le operazioni CRUD"
+            },
+            {
+              "id": 5,
+              "title": "Implementare API upload foto clienti",
+              "description": "Creare endpoint per upload foto cliente",
+              "status": "pending",
+              "details": "POST /api/customer-photos/upload, validazione file, upload a Supabase Storage, salvataggio metadata nel DB",
+              "testStrategy": "Testare upload con diversi formati e dimensioni"
+            },
+            {
+              "id": 6,
+              "title": "Implementare API generazione immagini AI",
+              "description": "Creare endpoint per richiedere generazione immagini",
+              "status": "pending",
+              "details": "POST /api/generate-image, integrazione con wrapper AI, gestione coda richieste, ritorno stato job",
+              "testStrategy": "Testare generazione immagini end-to-end"
+            },
+            {
+              "id": 7,
+              "title": "Implementare API gestione outfit",
+              "description": "Creare endpoint per creare e gestire outfit",
+              "status": "pending",
+              "details": "POST /api/outfits, GET /api/outfits, PUT /api/outfits/:id, DELETE /api/outfits/:id",
+              "testStrategy": "Testare gestione outfit completa"
+            },
+            {
+              "id": 8,
+              "title": "Implementare API statistiche",
+              "description": "Creare endpoint per recuperare statistiche",
+              "status": "pending",
+              "details": "GET /api/statistics, filtri per data/shop/product, aggregazioni, formattazione dati",
+              "testStrategy": "Verificare correttezza statistiche calcolate"
+            },
+            {
+              "id": 9,
+              "title": "Implementare API promozioni",
+              "description": "Creare endpoint per gestire promozioni e invii",
+              "status": "pending",
+              "details": "POST /api/promotions/create, POST /api/promotions/send, GET /api/promotions, tracking invii",
+              "testStrategy": "Testare creazione e invio promozioni"
+            },
+            {
+              "id": 10,
+              "title": "Implementare validazione input",
+              "description": "Aggiungere validazione robusta per tutti gli input",
+              "status": "pending",
+              "details": "Validazione schema (JSON Schema o Pydantic), sanitizzazione input, gestione errori validazione",
+              "testStrategy": "Testare con input validi e invalidi"
+            },
+            {
+              "id": 11,
+              "title": "Implementare gestione errori centralizzata",
+              "description": "Creare sistema di gestione errori uniforme",
+              "status": "pending",
+              "details": "Error handlers globali, formattazione errori standardizzata, logging errori, error codes",
+              "testStrategy": "Testare gestione diversi tipi di errori"
+            },
+            {
+              "id": 12,
+              "title": "Implementare logging e monitoring",
+              "description": "Configurare sistema di logging completo",
+              "status": "pending",
+              "details": "Logging richieste API, logging errori, logging operazioni AI, metriche performance",
+              "testStrategy": "Verificare che tutti i log siano corretti"
+            },
+            {
+              "id": 13,
+              "title": "Implementare rate limiting",
+              "description": "Aggiungere rate limiting per proteggere API",
+              "status": "pending",
+              "details": "Rate limiting per utente/IP, limiti diversi per endpoint, gestione rate limit exceeded",
+              "testStrategy": "Testare rate limiting con richieste multiple"
+            },
+            {
+              "id": 14,
+              "title": "Creare documentazione API",
+              "description": "Documentare tutti gli endpoint API",
+              "status": "pending",
+              "details": "Swagger/OpenAPI docs, esempi richieste/risposte, descrizione parametri, codici errore",
+              "testStrategy": "Verificare che la documentazione sia completa e corretta"
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "title": "Architettura preparata per app mobile futura",
+          "description": "Strutturare l'architettura per supportare futura app mobile con fotocamera",
+          "status": "pending",
+          "priority": "low",
+          "dependencies": [14],
+          "details": "API RESTful ben strutturate, documentazione API, supporto CORS, gestione upload da mobile, struttura modulare backend, separazione logica per riuso mobile.",
+          "testStrategy": "Verificare struttura API, testare CORS, verificare documentazione, testare compatibilità mobile."
+        },
+        {
+          "id": 16,
+          "title": "Testing e ottimizzazione",
+          "description": "Testing completo del sistema e ottimizzazione performance",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [13, 14],
+          "details": "Test unitari backend, test integrazione, test end-to-end, ottimizzazione query database, ottimizzazione caricamento immagini, caching, performance monitoring.",
+          "testStrategy": "Eseguire suite test completa, verificare coverage, testare performance, ottimizzare punti critici."
+        },
+        {
+          "id": 17,
+          "title": "Preparazione repository GitHub e configurazione CI/CD",
+          "description": "Preparare il repository GitHub per il deploy e configurare integrazione continua",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [16],
+          "details": "Assicurarsi che tutto il codice sia committato e pushato su GitHub con nuovo account, creare file di configurazione per Render (render.yaml o configurazione via dashboard), preparare script di build e start per produzione, configurare GitHub Actions per test automatici (opzionale), verificare che tutte le variabili d'ambiente siano documentate, creare file .env.example per riferimento, aggiornare README con istruzioni setup e deploy.",
+          "testStrategy": "Verificare che il repository GitHub contenga tutto il codice necessario, verificare che i file di configurazione siano corretti, testare build locale, verificare documentazione.",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Verificare che tutto il codice sia committato",
+              "description": "Assicurarsi che tutto il codice sia nel repository Git",
+              "status": "pending",
+              "details": "Controllare git status, committare eventuali file mancanti, verificare che .gitignore sia corretto",
+              "testStrategy": "Verificare che git status sia pulito"
+            },
+            {
+              "id": 2,
+              "title": "Fare push finale su GitHub",
+              "description": "Pushare tutto il codice sul repository GitHub remoto",
+              "status": "pending",
+              "details": "Verificare branch corrente, fare push su GitHub, verificare che tutto sia presente online",
+              "testStrategy": "Verificare su GitHub che tutto il codice sia presente"
+            },
+            {
+              "id": 3,
+              "title": "Creare file render.yaml per configurazione Render",
+              "description": "Creare file di configurazione Render per deploy automatico",
+              "status": "pending",
+              "details": "Definire servizio web, comandi build/start, variabili d'ambiente, health checks, scaling",
+              "testStrategy": "Verificare sintassi render.yaml"
+            },
+            {
+              "id": 4,
+              "title": "Preparare script di build per produzione",
+              "description": "Creare script per build ottimizzato produzione",
+              "status": "pending",
+              "details": "Script build.sh o package.json build, ottimizzazioni produzione, minificazione, bundling",
+              "testStrategy": "Testare build locale produzione"
+            },
+            {
+              "id": 5,
+              "title": "Preparare script di start per produzione",
+              "description": "Creare script per avviare applicazione in produzione",
+              "status": "pending",
+              "details": "Script start.sh, configurazione server (gunicorn/uwsgi per Python), gestione processi",
+              "testStrategy": "Testare start locale produzione"
+            },
+            {
+              "id": 6,
+              "title": "Configurare GitHub Actions per test (opzionale)",
+              "description": "Creare workflow GitHub Actions per test automatici",
+              "status": "pending",
+              "details": "Creare .github/workflows/test.yml, configurare test automatici su push/PR",
+              "testStrategy": "Verificare che i test si eseguano correttamente"
+            },
+            {
+              "id": 7,
+              "title": "Documentare tutte le variabili d'ambiente",
+              "description": "Creare documentazione completa variabili d'ambiente",
+              "status": "pending",
+              "details": "Lista completa variabili, descrizione uso, valori esempio, variabili obbligatorie/opzionali",
+              "testStrategy": "Verificare che tutte le variabili siano documentate"
+            },
+            {
+              "id": 8,
+              "title": "Creare file .env.example",
+              "description": "Creare file esempio con tutte le variabili d'ambiente",
+              "status": "pending",
+              "details": "Copiare struttura .env senza valori sensibili, aggiungere commenti esplicativi",
+              "testStrategy": "Verificare che .env.example sia completo"
+            },
+            {
+              "id": 9,
+              "title": "Aggiornare README con istruzioni complete",
+              "description": "Scrivere README completo con setup e deploy",
+              "status": "pending",
+              "details": "Descrizione progetto, requisiti, istruzioni installazione, configurazione, deploy su Render, troubleshooting",
+              "testStrategy": "Verificare che il README sia chiaro e completo"
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "title": "Deploy su Render e documentazione",
+          "description": "Preparare deploy produzione su Render e documentazione completa",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [17],
+          "details": "Configurare account Render, collegare repository GitHub al servizio Render, configurare variabili d'ambiente su Render, configurare build settings (comandi build/start), configurare servizio web su Render, configurare database PostgreSQL su Render (se necessario) o mantenere Supabase, configurare dominio personalizzato (opzionale), configurare SSL/HTTPS automatico, testare deploy automatico da GitHub, configurare webhook GitHub per auto-deploy. Documentazione utente, documentazione tecnica, guide installazione, README completo con istruzioni deploy.",
+          "testStrategy": "Verificare deploy su Render, testare ambiente live, verificare che il deploy automatico funzioni da GitHub, verificare variabili d'ambiente, testare connessioni database, verificare SSL/HTTPS, verificare documentazione completa.",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Creare account Render",
+              "description": "Registrarsi su Render e creare account",
+              "status": "pending",
+              "details": "Registrazione su render.com, verifica email, configurazione account base",
+              "testStrategy": "Verificare accesso al dashboard Render"
+            },
+            {
+              "id": 2,
+              "title": "Collegare repository GitHub a Render",
+              "description": "Connettere il repository GitHub al servizio Render",
+              "status": "pending",
+              "details": "Autorizzare Render ad accedere a GitHub, selezionare repository, configurare branch (main/master)",
+              "testStrategy": "Verificare che Render possa accedere al repository"
+            },
+            {
+              "id": 3,
+              "title": "Configurare variabili d'ambiente su Render",
+              "description": "Aggiungere tutte le variabili d'ambiente necessarie su Render",
+              "status": "pending",
+              "details": "Aggiungere SUPABASE_URL, SUPABASE_KEY, API keys AI, altre variabili necessarie",
+              "testStrategy": "Verificare che tutte le variabili siano configurate"
+            },
+            {
+              "id": 4,
+              "title": "Configurare build settings su Render",
+              "description": "Impostare comandi di build e start per il servizio",
+              "status": "pending",
+              "details": "Comando build (es: pip install -r requirements.txt), comando start (es: gunicorn app:app), root directory",
+              "testStrategy": "Verificare che i comandi siano corretti"
+            },
+            {
+              "id": 5,
+              "title": "Creare e configurare servizio web su Render",
+              "description": "Creare nuovo servizio web su Render",
+              "status": "pending",
+              "details": "Selezionare tipo servizio (Web Service), configurare piano, regione, auto-deploy",
+              "testStrategy": "Verificare che il servizio sia creato"
+            },
+            {
+              "id": 6,
+              "title": "Configurare database (Supabase o Render PostgreSQL)",
+              "description": "Decidere se usare Supabase o PostgreSQL Render e configurare",
+              "status": "pending",
+              "details": "Se Supabase: verificare connessione. Se Render PostgreSQL: creare database, ottenere connection string",
+              "testStrategy": "Testare connessione database"
+            },
+            {
+              "id": 7,
+              "title": "Eseguire primo deploy manuale",
+              "description": "Fare deploy iniziale e verificare che funzioni",
+              "status": "pending",
+              "details": "Trigger deploy manuale, monitorare build logs, verificare che il servizio si avvii",
+              "testStrategy": "Verificare che l'applicazione sia accessibile"
+            },
+            {
+              "id": 8,
+              "title": "Configurare dominio personalizzato (opzionale)",
+              "description": "Aggiungere dominio personalizzato se necessario",
+              "status": "pending",
+              "details": "Aggiungere dominio in Render, configurare DNS, verificare SSL automatico",
+              "testStrategy": "Verificare che il dominio funzioni con SSL"
+            },
+            {
+              "id": 9,
+              "title": "Verificare SSL/HTTPS automatico",
+              "description": "Assicurarsi che SSL sia configurato correttamente",
+              "status": "pending",
+              "details": "Verificare certificato SSL, testare connessioni HTTPS, verificare redirect HTTP->HTTPS",
+              "testStrategy": "Testare accesso HTTPS"
+            },
+            {
+              "id": 10,
+              "title": "Testare deploy automatico da GitHub",
+              "description": "Verificare che il deploy automatico funzioni",
+              "status": "pending",
+              "details": "Fare commit su GitHub, verificare che Render rilevi il cambio, verificare deploy automatico",
+              "testStrategy": "Verificare che il deploy si attivi automaticamente"
+            },
+            {
+              "id": 11,
+              "title": "Configurare webhook GitHub per notifiche",
+              "description": "Configurare webhook per notifiche deploy",
+              "status": "pending",
+              "details": "Configurare webhook GitHub in Render, testare notifiche, configurare email alerts",
+              "testStrategy": "Verificare che le notifiche funzionino"
+            },
+            {
+              "id": 12,
+              "title": "Testare applicazione in produzione",
+              "description": "Eseguire test completi sull'applicazione deployata",
+              "status": "pending",
+              "details": "Testare tutte le funzionalità principali, verificare performance, testare errori, verificare logging",
+              "testStrategy": "Eseguire suite test completa su produzione"
+            },
+            {
+              "id": 13,
+              "title": "Creare documentazione utente finale",
+              "description": "Scrivere documentazione completa per utenti finali",
+              "status": "pending",
+              "details": "Guide utente cliente, guide utente negoziante, FAQ, troubleshooting",
+              "testStrategy": "Verificare che la documentazione sia chiara"
+            },
+            {
+              "id": 14,
+              "title": "Creare documentazione tecnica finale",
+              "description": "Completare documentazione tecnica per sviluppatori",
+              "status": "pending",
+              "details": "Architettura sistema, API documentation, setup sviluppo, deploy guide",
+              "testStrategy": "Verificare che la documentazione tecnica sia completa"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,25 @@
+{
+	"mcpServers": {
+		"task-master-ai": {
+			"command": "npx",
+			"args": ["-y", "--package=task-master-ai", "task-master-ai"],
+			"env": {
+				"ANTHROPIC_API_KEY": "YOUR_ANTHROPIC_API_KEY_HERE",
+				"PERPLEXITY_API_KEY": "YOUR_PERPLEXITY_API_KEY_HERE",
+				"OPENAI_API_KEY": "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",
+				"GOOGLE_API_KEY": "YOUR_GOOGLE_KEY_HERE",
+				"XAI_API_KEY": "YOUR_XAI_KEY_HERE",
+				"OPENROUTER_API_KEY": "YOUR_OPENROUTER_KEY_HERE",
+				"MISTRAL_API_KEY": "YOUR_MISTRAL_KEY_HERE",
+				"AZURE_OPENAI_API_KEY": "YOUR_AZURE_KEY_HERE",
+				"OLLAMA_API_KEY": "YOUR_OLLAMA_API_KEY_HERE"
+			}
+		},
+		"github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer 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"
+      }
+    }
+	}
+}

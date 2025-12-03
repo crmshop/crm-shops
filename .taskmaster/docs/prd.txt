@@ -1,0 +1,13 @@
+Il progetto denominato 'crm-shops' si propone l'obiettivo di simulare, attraverso l'ai generativa, ad esempio di indossare vestiti, scarpe o accessori in un soggetto che ha inserito una o più foto che lo ritraggono da diverse angolazioni.
+Questo progetto può essere un prodotto di vendita per negozianti e siti online perchè può agevolare le vendite:
+- il cliente vista un e-commerce o un negozio reale
+- da il consenso affinchè vengano scattate delle foto a lui o da alcune sue foto disponibili
+- tra i capi del negozio fisico o virtuale sceglie l'abbigliamento o gli accessori che gli interessano
+- il negozio può proporre degli outfit
+- tutte le immagini vengono caricate nell'applicazione che servendosi di servizi come banana pro di gemini di google
+- a livello di sistema bisogna prevedere già dei prompt definiti a cui si possono aggiungere delle note del cliente o del negoziante
+- a seconda del tipo di abbigliamento il sistema genera delle foto o dei video ambientati in luoghi che il sistema consiglia o il cliente chiede (ad esempio se sta comprando un capo invernale per la montagna il sistema può craere una immagine ambientata con la neve, nei boschi o in un altro scenario simile. se il capo deve servire per il capodanno la scena può essere in una festa in montagna o qualcosa di simile)
+- il negoziante deve poter salvare le immagini create nell'applicazione, deve poter fare un accesso con le credenziali dove trova tutte le statistiche del cliente, cosa ha comperato con tutti i dati necessari per poter elaborare eventuali altre immagini a scopo promozionale: se arrivano nuovi vestiti o accessori( ad esempio una cuffia) può far creare al sistema una immagine dove il cliente o i clienti selezionati indossano la cuffia ed inviare l'immagine al cliente attraverso email o altri canali social
+- il sistema deve utilizzare un sito internet in html con css e javascript  collegato ad un database postgresql e storage su supabase, le immagini create devono essere salvate per un utilizzo successivo
+- l'architettura deve prevedere un successivo sviluppo dell'applicazione come app mobile in modo da permettere ad una persona di fotografare un capo in un negozio e creare delle immagini con le caratteristiche viste in precedenza
+- il piano deve essere fatto in italiano
