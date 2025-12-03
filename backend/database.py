@@ -28,7 +28,7 @@ def init_supabase() -> Client:
 
 
 def get_supabase() -> Client:
-    """Ottiene il client Supabase (lazy initialization)"""
+    """Ottiene il client Supabase (dependency injection per FastAPI)"""
     if supabase is None:
         return init_supabase()
     return supabase

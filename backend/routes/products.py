@@ -94,9 +94,34 @@ async def get_product(product_id: UUID, supabase: Client = Depends(get_supabase)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_product(product: ProductCreate, supabase: Client = Depends(get_supabase)):
+async def create_product(
+    product: ProductCreate,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+):
     """Crea un nuovo prodotto"""
     try:
+        # Solo negozianti possono creare prodotti
+        if current_user["role"] != "negoziante":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Solo i negozianti possono creare prodotti"
+            )
+        
+        # Verifica che il negozio appartenga all'utente corrente
+        shop_result = supabase.table("shops").select("*").eq("id", str(product.shop_id)).execute()
+        if not shop_result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Negozio non trovato"
+            )
+        
+        if shop_result.data[0]["owner_id"] != current_user["id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Puoi creare prodotti solo per i tuoi negozi"
+            )
+        
         # Valida categoria
         if product.category not in ["vestiti", "scarpe", "accessori"]:
             raise HTTPException(

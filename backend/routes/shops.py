@@ -82,11 +82,23 @@ async def get_shop(shop_id: UUID, supabase: Client = Depends(get_supabase)):
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_shop(shop: ShopCreate, supabase: Client = Depends(get_supabase)):
+async def create_shop(
+    shop: ShopCreate,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+):
     """Crea un nuovo negozio"""
     try:
+        # Solo negozianti possono creare negozi
+        if current_user["role"] != "negoziante":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Solo i negozianti possono creare negozi"
+            )
+        
         shop_data = shop.dict()
-        shop_data["owner_id"] = str(shop_data["owner_id"])
+        # Usa l'ID dell'utente corrente come owner
+        shop_data["owner_id"] = current_user["id"]
         
         result = supabase.table("shops").insert(shop_data).execute()
         
