@@ -305,30 +305,27 @@ router.addRoute('/products', async () => {
         return;
     }
     
-    try {
-        const data = await apiCall('/api/products/');
-        const products = data.products || [];
-        
-        document.getElementById('main-content').innerHTML = `
-            <div class="products-page">
-                <h2>Gestione Prodotti</h2>
-                <button class="btn btn-primary" onclick="showCreateProductForm()">+ Nuovo Prodotto</button>
-                <div id="products-list" class="products-grid">
-                    ${products.length === 0 ? '<p>Nessun prodotto. Crea il primo prodotto!</p>' : 
-                        products.map(p => `
-                            <div class="product-card">
-                                <h3>${p.name}</h3>
-                                <p><strong>Categoria:</strong> ${p.category}</p>
-                                ${p.price ? `<p><strong>Prezzo:</strong> €${p.price}</p>` : ''}
-                                ${p.available ? '<span class="badge badge-success">Disponibile</span>' : '<span class="badge badge-danger">Non disponibile</span>'}
-                            </div>
-                        `).join('')
-                    }
-                </div>
+    document.getElementById('main-content').innerHTML = `
+        <div class="products-page">
+            <h2>Gestione Prodotti</h2>
+            <button class="btn btn-primary" onclick="showCreateProductForm()">+ Nuovo Prodotto</button>
+            <div id="products-list" class="products-grid">
+                <div class="loading">Caricamento prodotti...</div>
             </div>
-        `;
-    } catch (error) {
-        showError('Errore nel caricamento prodotti: ' + error.message);
+        </div>
+    `;
+    
+    // Carica script prodotti se non già caricato
+    if (!window.productsLoaded) {
+        const script = document.createElement('script');
+        script.src = 'pages/products.js';
+        script.onload = () => {
+            window.productsLoaded = true;
+            loadProducts();
+        };
+        document.head.appendChild(script);
+    } else {
+        loadProducts();
     }
 });
 
