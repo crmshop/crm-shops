@@ -1,7 +1,7 @@
 """
 Configurazione applicazione
 """
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
 from dotenv import load_dotenv
@@ -11,6 +11,12 @@ load_dotenv()
 
 class Settings(BaseSettings):
     """Impostazioni applicazione"""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"  # Ignora campi extra nel .env
+    )
     
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
@@ -38,10 +44,6 @@ class Settings(BaseSettings):
         "ALLOWED_ORIGINS", 
         "http://localhost:3000,http://localhost:8080,http://localhost:5500"
     ).split(",")
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 settings = Settings()
