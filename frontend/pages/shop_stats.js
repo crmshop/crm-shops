@@ -51,6 +51,12 @@ function renderStats() {
             </div>
         </div>
         
+        <div class="stats-charts">
+            <div class="chart-container">
+                <canvas id="stats-overview-chart"></canvas>
+            </div>
+        </div>
+        
         <div class="stats-sections">
             <div class="stats-section">
                 <h4>Clienti Recenti</h4>
@@ -86,6 +92,21 @@ function renderStats() {
                 </div>
             </div>
         </div>
+        
+        <script>
+            // Inizializza grafici dopo il rendering
+            setTimeout(() => {
+                if (typeof Chart !== 'undefined') {
+                    initStatsChart();
+                } else {
+                    // Carica Chart.js e poi inizializza
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                    script.onload = initStatsChart;
+                    document.head.appendChild(script);
+                }
+            }, 100);
+        </script>
     `;
 }
 
