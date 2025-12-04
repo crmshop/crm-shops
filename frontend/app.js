@@ -295,7 +295,7 @@ router.addRoute('/dashboard', () => {
                     <div id="shop-tab-shops" class="tab-content active">
                         <div class="section-header">
                             <h4>I Miei Negozi</h4>
-                            <button class="btn btn-primary" onclick="showCreateShopForm()">+ Nuovo Negozio</button>
+                            <button class="btn btn-primary" data-action="create-shop">+ Nuovo Negozio</button>
                         </div>
                         <div id="shops-list">
                             <p class="empty-state">Caricamento negozi...</p>
@@ -305,7 +305,7 @@ router.addRoute('/dashboard', () => {
                     <div id="shop-tab-products" class="tab-content">
                         <div class="section-header">
                             <h4>Gestione Prodotti</h4>
-                            <button class="btn btn-primary" onclick="showCreateProductForm()">+ Nuovo Prodotto</button>
+                            <button class="btn btn-primary" data-action="create-product">+ Nuovo Prodotto</button>
                         </div>
                         <div id="products-list" class="products-grid">
                             <div class="loading">Caricamento prodotti...</div>
@@ -315,7 +315,7 @@ router.addRoute('/dashboard', () => {
                     <div id="shop-tab-customers" class="tab-content">
                         <div class="section-header">
                             <h4>Gestione Clienti</h4>
-                            <button class="btn btn-primary" onclick="showCreateCustomerForm()">+ Nuovo Cliente</button>
+                            <button class="btn btn-primary" data-action="create-customer">+ Nuovo Cliente</button>
                         </div>
                         <div id="customers-list" class="customers-grid">
                             <div class="loading">Caricamento clienti...</div>
@@ -343,17 +343,35 @@ router.addRoute('/dashboard', () => {
                             document.head.appendChild(script);
                         }
                         
-                        loadScript('pages/shops.js', () => {
+                        // Carica tutti gli script in parallelo e poi inizializza
+                        Promise.all([
+                            new Promise(resolve => loadScript('pages/shops.js', resolve)),
+                            new Promise(resolve => loadScript('pages/products.js', resolve)),
+                            new Promise(resolve => loadScript('pages/shop_customers.js', resolve)),
+                            new Promise(resolve => loadScript('pages/shop_stats.js', resolve))
+                        ]).then(() => {
+                            // Dopo che tutti gli script sono caricati, inizializza
                             if (window.loadShops) window.loadShops();
-                        });
-                        loadScript('pages/products.js', () => {
-                            if (window.loadProducts) window.loadProducts();
-                        });
-                        loadScript('pages/shop_customers.js', () => {
-                            if (window.loadCustomers) window.loadCustomers();
-                        });
-                        loadScript('pages/shop_stats.js', () => {
-                            // Le statistiche vengono caricate quando si seleziona un negozio
+                            
+                            // Usa event delegation per gestire i click invece di onclick inline
+                            document.addEventListener('click', function(e) {
+                                if (e.target.matches('[data-action="create-shop"]')) {
+                                    e.preventDefault();
+                                    if (window.showCreateShopForm) {
+                                        window.showCreateShopForm();
+                                    }
+                                } else if (e.target.matches('[data-action="create-product"]')) {
+                                    e.preventDefault();
+                                    if (window.showCreateProductForm) {
+                                        window.showCreateProductForm();
+                                    }
+                                } else if (e.target.matches('[data-action="create-customer"]')) {
+                                    e.preventDefault();
+                                    if (window.showCreateCustomerForm) {
+                                        window.showCreateCustomerForm();
+                                    }
+                                }
+                            });
                         });
                     })();
                 </script>
