@@ -3,10 +3,32 @@ Configurazione applicazione
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
-from pydantic import field_validator
+from pydantic import field_validator, computed_field
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Default origins per sviluppo
+DEFAULT_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://localhost:5500"
+]
+
+
+def parse_origins(value) -> List[str]:
+    """Parser robusto per ALLOWED_ORIGINS"""
+    if isinstance(value, list):
+        return value
+    
+    if isinstance(value, str):
+        if not value.strip():
+            return DEFAULT_ORIGINS
+        origins = [origin.strip() for origin in value.split(",") if origin.strip()]
+        return origins if origins else DEFAULT_ORIGINS
+    
+    return DEFAULT_ORIGINS
 
 
 class Settings(BaseSettings):
@@ -15,7 +37,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
-        extra="ignore"  # Ignora campi extra nel .env
+        extra="ignore",  # Ignora campi extra nel .env
+        env_parse_none_str=True  # Tratta stringhe vuote come None
     )
     
     # Supabase
@@ -39,47 +62,20 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # CORS - Default origins per sviluppo
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "http://localhost:5500"
-    ]
+    # CORS - Usa str invece di List[str] per evitare problemi di parsing Pydantic
+    ALLOWED_ORIGINS_STR: str = ""
     
-    @field_validator('ALLOWED_ORIGINS', mode='before')
-    @classmethod
-    def parse_allowed_origins(cls, v):
-        """Parser per ALLOWED_ORIGINS da stringa separata da virgola"""
-        # Se è già una lista, restituiscila così com'è
-        if isinstance(v, list):
-            return v
-        
-        # Se è una stringa, parsala
-        if isinstance(v, str):
-            # Se è vuota, usa i default
-            if not v.strip():
-                return [
-                    "http://localhost:3000",
-                    "http://localhost:8080",
-                    "http://localhost:5500"
-                ]
-            # Rimuovi spazi e filtra stringhe vuote
-            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
-            # Se dopo il parsing è vuota, usa i default
-            if not origins:
-                return [
-                    "http://localhost:3000",
-                    "http://localhost:8080",
-                    "http://localhost:5500"
-                ]
-            return origins
-        
-        # Se è None o altro tipo, usa i default
-        return [
-            "http://localhost:3000",
-            "http://localhost:8080",
-            "http://localhost:5500"
-        ]
+    def get_allowed_origins(self) -> List[str]:
+        """Metodo per ottenere ALLOWED_ORIGINS come lista"""
+        # Leggi dalla variabile d'ambiente direttamente
+        env_value = os.getenv("ALLOWED_ORIGINS", "")
+        value = self.ALLOWED_ORIGINS_STR or env_value
+        return parse_origins(value)
+    
+    @property
+    def ALLOWED_ORIGINS(self) -> List[str]:
+        """Property per compatibilità con codice esistente"""
+        return self.get_allowed_origins()
     
     @field_validator('DEBUG', mode='before')
     @classmethod
