@@ -31,3 +31,4 @@ services:
     # Nota: Per il frontend statico, devi aggiornare app.js per usare
     # process.env.API_BASE_URL o configurare l'URL dell'API dinamicamente
 
+

@@ -69,3 +69,4 @@ echo "   2. Crea Static Site su Render per frontend"
 echo "   3. Configura variabili d'ambiente"
 echo "   4. Deploy!"
 
+

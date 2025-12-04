@@ -14,3 +14,4 @@ from backend.utils.env_loader import print_env_status
 if __name__ == "__main__":
     print_env_status()
 
+

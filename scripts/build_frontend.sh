@@ -25,3 +25,4 @@ echo "✅ Frontend build completato in $BUILD_DIR"
 echo "📦 File pronti per il deploy:"
 ls -lh "$BUILD_DIR"
 
+

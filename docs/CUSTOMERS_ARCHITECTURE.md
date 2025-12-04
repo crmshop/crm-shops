@@ -135,3 +135,4 @@ La migrazione:
 - Crea indici per performance
 - Aggiunge trigger per `updated_at`
 
+

@@ -143,3 +143,4 @@ async def get_all_shops_stats(
             detail="Errore nel recupero delle statistiche"
         )
 
+

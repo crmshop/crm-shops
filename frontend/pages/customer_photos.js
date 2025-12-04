@@ -203,3 +203,4 @@ window.deletePhoto = deletePhoto;
 window.closeUploadModal = closeUploadModal;
 window.loadCustomerPhotos = loadCustomerPhotos;
 
+

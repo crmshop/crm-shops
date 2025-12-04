@@ -187,3 +187,4 @@ class GeminiService:
 
 gemini_service = GeminiService()
 
+
