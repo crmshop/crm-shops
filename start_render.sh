@@ -20,7 +20,14 @@ if [ -z "$PORT" ]; then
     export PORT=8000
 fi
 
+# Trova il comando Python corretto
+PYTHON_CMD=$(which python3 || which python)
+if [ -z "$PYTHON_CMD" ]; then
+    echo "❌ Errore: Python non trovato!"
+    exit 1
+fi
+
 # Avvia uvicorn con binding esplicito alla porta
-echo "🚀 Avvio uvicorn su porta $PORT..."
-exec python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+echo "🚀 Avvio uvicorn su porta $PORT con $PYTHON_CMD..."
+exec $PYTHON_CMD -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 
