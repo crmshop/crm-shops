@@ -195,6 +195,9 @@ window.showCreateProductForm = showCreateProductForm;
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 window.closeModal = closeModal;
+window.loadProducts = loadProducts;
+
+})(); // Fine IIFE
 
 
 

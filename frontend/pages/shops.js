@@ -212,13 +212,5 @@ window.editShop = editShop;
 window.deleteShop = deleteShop;
 window.closeModal = closeModal;
 
-// Carica negozi all'avvio se siamo nella dashboard
-if (window.location.pathname === '/dashboard') {
-    setTimeout(() => {
-        const shopsTab = document.getElementById('shop-tab-shops');
-        if (shopsTab && shopsTab.classList.contains('active')) {
-            loadShops();
-        }
-    }, 500);
-}
+})(); // Fine IIFE
 

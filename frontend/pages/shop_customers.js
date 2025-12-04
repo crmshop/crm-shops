@@ -410,3 +410,5 @@ window.closeUploadCustomerPhotoModal = closeUploadCustomerPhotoModal;
 window.closeViewPhotosModal = closeViewPhotosModal;
 window.loadCustomers = loadCustomers;
 
+})(); // Fine IIFE
+
