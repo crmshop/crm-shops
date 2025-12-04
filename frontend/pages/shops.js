@@ -12,8 +12,8 @@
 // Usa API_BASE_URL globale da app.js o fallback
 const getApiBaseUrl = () => window.API_BASE_URL || window.CONFIG?.API_BASE_URL || 'http://localhost:8000';
 
-// Helper per chiamate API
-async function apiCall(endpoint, options = {}) {
+// Usa apiCall globale da app.js
+const apiCall = window.apiCall || async function(endpoint, options = {}) {
     const token = localStorage.getItem('crm_token');
     const headers = {
         'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ async function apiCall(endpoint, options = {}) {
         console.error('API Error:', error);
         throw error;
     }
-}
+};
 
 // Carica lista negozi
 async function loadShops() {
@@ -61,8 +61,10 @@ async function loadShops() {
         console.log('📥 Caricamento negozi per utente:', user.id);
         const data = await apiCall(`/api/shops/?owner_id=${user.id}`);
         console.log('✅ Negozi caricati:', data);
-        renderShops(data.shops || []);
-        return data.shops || [];
+        const shops = data.shops || [];
+        console.log('📊 Numero negozi:', shops.length);
+        renderShops(shops);
+        return shops;
     } catch (error) {
         console.error('❌ Errore caricamento negozi:', error);
         container.innerHTML = `<p class="error">Errore nel caricamento negozi: ${error.message}</p>`;
@@ -73,7 +75,12 @@ async function loadShops() {
 // Renderizza lista negozi
 function renderShops(shops) {
     const container = document.getElementById('shops-list');
-    if (!container) return;
+    if (!container) {
+        console.warn('Container shops-list non trovato per rendering');
+        return;
+    }
+    
+    console.log('🎨 Rendering negozi:', shops.length);
     
     if (shops.length === 0) {
         container.innerHTML = '<p class="empty-state">Nessun negozio trovato. Crea il tuo primo negozio!</p>';
