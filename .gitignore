@@ -48,3 +48,4 @@ Thumbs.db
 .taskmaster/tasks/
 *.db
 *.sqlite
+.cursor/
