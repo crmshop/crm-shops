@@ -38,13 +38,25 @@ def init_supabase_admin() -> Client:
     global supabase_admin
     
     if supabase_admin is None:
-        if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
+        if not settings.SUPABASE_URL:
+            raise ValueError("SUPABASE_URL deve essere configurata nelle variabili d'ambiente")
+        
+        if not settings.SUPABASE_SERVICE_KEY:
+            logger.error("❌ SUPABASE_SERVICE_KEY non configurata!")
+            logger.error("   Configurala su Render Dashboard > Environment Variables")
             raise ValueError(
-                "SUPABASE_URL e SUPABASE_SERVICE_KEY devono essere configurate nelle variabili d'ambiente"
+                "SUPABASE_SERVICE_KEY deve essere configurata nelle variabili d'ambiente. "
+                "Trovala in Supabase Dashboard > Settings > API > service_role key"
             )
         
+        # Verifica che la service key sia diversa dalla anon key
+        if settings.SUPABASE_SERVICE_KEY == settings.SUPABASE_KEY:
+            logger.warning("⚠️ SUPABASE_SERVICE_KEY è uguale a SUPABASE_KEY - potrebbe essere un errore!")
+        
+        logger.info(f"🔧 Creazione client admin con service key (lunghezza: {len(settings.SUPABASE_SERVICE_KEY)})")
         supabase_admin = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-        logger.info("Client Supabase Admin inizializzato correttamente")
+        logger.info("✅ Client Supabase Admin inizializzato correttamente")
+        logger.info(f"   URL: {settings.SUPABASE_URL}")
     
     return supabase_admin
 

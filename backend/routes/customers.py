@@ -295,6 +295,20 @@ async def upload_customer_photo(
         )
     
     try:
+        # Verifica configurazione SUPABASE_SERVICE_KEY
+        from backend.config import settings
+        if not settings.SUPABASE_SERVICE_KEY:
+            logger.error("❌ SUPABASE_SERVICE_KEY non configurata!")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="SUPABASE_SERVICE_KEY non configurata. Configurala su Render Dashboard > Environment Variables"
+            )
+        logger.info(f"✅ SUPABASE_SERVICE_KEY configurata (lunghezza: {len(settings.SUPABASE_SERVICE_KEY)})")
+        
+        # Verifica che il client admin sia inizializzato correttamente
+        logger.info(f"🔍 Verifica client admin: {type(supabase_admin)}")
+        logger.info(f"🔍 Client admin URL: {supabase_admin.supabase_url if hasattr(supabase_admin, 'supabase_url') else 'N/A'}")
+        
         # Leggi il file
         file_content = await file.read()
         file_name = f"{customer_id}/{file.filename}"
@@ -302,11 +316,26 @@ async def upload_customer_photo(
         # Carica su Supabase Storage usando admin client (bypassa RLS)
         bucket_name = "customer-photos"
         
-        storage_response = supabase_admin.storage.from_(bucket_name).upload(
-            file_name,
-            file_content,
-            file_options={"content-type": file.content_type or "image/jpeg"}
-        )
+        logger.info(f"📤 Tentativo upload Storage: bucket={bucket_name}, file={file_name}")
+        try:
+            storage_response = supabase_admin.storage.from_(bucket_name).upload(
+                file_name,
+                file_content,
+                file_options={"content-type": file.content_type or "image/jpeg"}
+            )
+            logger.info(f"✅ Upload Storage riuscito: {storage_response}")
+        except Exception as storage_error:
+            logger.error(f"❌ Errore durante upload Storage: {storage_error}")
+            logger.error(f"   Tipo errore: {type(storage_error)}")
+            logger.error(f"   Dettagli: {str(storage_error)}")
+            # Verifica se è un errore RLS
+            if "row-level security" in str(storage_error).lower() or "unauthorized" in str(storage_error).lower():
+                logger.error("⚠️ Errore RLS su Storage - verifica che SUPABASE_SERVICE_KEY sia corretta")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Errore RLS su Storage. Verifica che SUPABASE_SERVICE_KEY sia configurata correttamente su Render"
+                )
+            raise
         
         # Ottieni URL pubblico
         public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
