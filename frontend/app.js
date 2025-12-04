@@ -550,19 +550,23 @@ function setupEventDelegation() {
         if (!action) return;
         
         // Se la funzione non è disponibile, attendi e riprova
-        function tryAction(actionName, funcName, retries = 3) {
+        function tryAction(actionName, funcName, retries = 3, maxRetries = 3) {
             if (window[funcName]) {
                 window[funcName]();
                 return true;
             } else if (retries > 0) {
                 // Attendi un po' e riprova (gli script potrebbero essere ancora in caricamento)
                 setTimeout(() => {
-                    tryAction(actionName, funcName, retries - 1);
+                    tryAction(actionName, funcName, retries - 1, maxRetries);
                 }, 200);
                 return false;
             } else {
-                console.warn(`${funcName} non ancora caricata dopo ${retries} tentativi`);
-                window.showError(`Funzionalità non ancora disponibile. Attendi qualche secondo e riprova.`);
+                console.warn(`${funcName} non ancora caricata dopo ${maxRetries} tentativi`);
+                if (window.showError) {
+                    window.showError(`Funzionalità non ancora disponibile. Attendi qualche secondo e riprova.`);
+                } else {
+                    alert(`Funzionalità non ancora disponibile. Attendi qualche secondo e riprova.`);
+                }
                 return false;
             }
         }
