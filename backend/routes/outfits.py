@@ -104,11 +104,34 @@ async def get_outfit(outfit_id: UUID, supabase: Client = Depends(get_supabase)):
 async def create_outfit(outfit: OutfitCreate, supabase: Client = Depends(get_supabase)):
     """Crea un nuovo outfit"""
     try:
+        # Valida numero prodotti (max 10)
+        if len(outfit.product_ids) > 10:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Puoi selezionare massimo 10 prodotti"
+            )
+        
+        if len(outfit.product_ids) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Seleziona almeno un prodotto"
+            )
+        
+        # Verifica che il cliente appartenga al negozio
+        customer_response = supabase.table("shop_customers").select("*").eq("id", str(outfit.customer_id)).eq("shop_id", str(outfit.shop_id)).execute()
+        if not customer_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cliente non trovato per questo negozio"
+            )
+        
         # Crea l'outfit
+        # Nota: la tabella outfits potrebbe avere solo user_id, quindi per ora usiamo NULL
+        # In futuro possiamo aggiungere customer_id alla tabella outfits
         outfit_data = {
-            "user_id": str(outfit.user_id),
             "shop_id": str(outfit.shop_id),
-            "name": outfit.name
+            "name": outfit.name,
+            "user_id": None  # Per clienti shop_customers non abbiamo user_id
         }
         
         result = supabase.table("outfits").insert(outfit_data).execute()
