@@ -409,13 +409,26 @@ async function uploadPhotoForCustomer(customerId) {
         uploadBtnText.style.display = 'none';
         uploadBtnLoading.style.display = 'inline';
         
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        // Recupera token da localStorage o da window.state
+        const token = localStorage.getItem('crm_shops_auth_token') || 
+                     localStorage.getItem('crm_token') ||
+                     (window.state && window.state.token) ||
+                     null;
+        
+        if (!token) {
+            throw new Error('Token di autenticazione non trovato. Effettua il login.');
+        }
+        
         const apiBaseUrl = window.API_BASE_URL || window.CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        
+        // Per FormData, NON impostare Content-Type - il browser lo fa automaticamente con boundary
+        const headers = {
+            'Authorization': `Bearer ${token}`
+        };
+        
         const response = await fetch(`${apiBaseUrl}/api/customers/${customerId}/photos`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
+            headers: headers,
             body: formData
         });
         
