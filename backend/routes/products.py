@@ -24,7 +24,8 @@ class ProductCreate(BaseModel):
     occasion: Optional[str] = None
     style: Optional[str] = None
     price: Optional[float] = None
-    image_url: Optional[str] = None
+    image_url: Optional[str] = None  # Deprecato: usa images invece
+    images: Optional[List[str]] = None  # Lista di URL immagini (max 3)
     available: bool = True
 
 

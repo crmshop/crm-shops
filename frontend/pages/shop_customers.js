@@ -136,6 +136,12 @@ function showCreateCustomerForm() {
                             <label>Note</label>
                             <textarea id="customer-notes" rows="3" placeholder="Note aggiuntive sul cliente..."></textarea>
                         </div>
+                        <div class="form-group">
+                            <label>Foto Cliente (max 3)</label>
+                            <input type="file" id="customer-photos" accept="image/*" multiple>
+                            <small>Puoi caricare massimo 3 immagini</small>
+                            <div id="customer-photos-preview" class="photos-preview"></div>
+                        </div>
                         <button type="submit" class="btn btn-primary">Crea Cliente</button>
                     </form>
                 </div>
@@ -143,6 +149,36 @@ function showCreateCustomerForm() {
         `;
         
         document.body.insertAdjacentHTML('beforeend', formHTML);
+        
+        // Gestione preview immagini
+        const photosInput = document.getElementById('customer-photos');
+        const previewDiv = document.getElementById('customer-photos-preview');
+        
+        photosInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length > 3) {
+                showError('Puoi caricare massimo 3 immagini');
+                e.target.value = '';
+                previewDiv.innerHTML = '';
+                return;
+            }
+            
+            previewDiv.innerHTML = '';
+            files.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '100px';
+                    img.style.height = '100px';
+                    img.style.objectFit = 'cover';
+                    img.style.margin = '5px';
+                    img.style.borderRadius = '4px';
+                    previewDiv.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
         
         document.getElementById('customer-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -153,6 +189,20 @@ function showCreateCustomerForm() {
 
 async function createCustomer() {
     try {
+        const photosInput = document.getElementById('customer-photos');
+        const files = Array.from(photosInput.files);
+        
+        if (files.length > 3) {
+            if (window.showError) {
+                window.showError('Puoi caricare massimo 3 immagini');
+            } else {
+                alert('Puoi caricare massimo 3 immagini');
+            }
+            e.target.value = '';
+            previewDiv.innerHTML = '';
+            return;
+        }
+        
         const customerData = {
             shop_id: document.getElementById('customer-shop').value,
             email: document.getElementById('customer-email').value,
@@ -164,10 +214,26 @@ async function createCustomer() {
             notes: document.getElementById('customer-notes').value || null
         };
         
-        await window.apiCall('/api/customers/', {
+        // Crea prima il cliente
+        const customerResponse = await window.apiCall('/api/customers/', {
             method: 'POST',
             body: JSON.stringify(customerData)
         });
+        
+        // Poi carica le immagini se presenti
+        if (files.length > 0) {
+            const customerId = customerResponse.id;
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                await window.apiCall(`/api/customers/${customerId}/photos`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {} // Non impostare Content-Type, il browser lo fa automaticamente per FormData
+                });
+            }
+        }
         
         showSuccess('Cliente creato con successo!');
         closeCustomerModal();

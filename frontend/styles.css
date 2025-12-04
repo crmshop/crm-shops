@@ -1,4 +1,36 @@
 /* Reset e base styles */
+.photos-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.photos-preview img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 2px solid #ddd;
+}
+
+.image-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.image-input-group input[type="file"],
+.image-input-group input[type="url"] {
+    flex: 1;
+}
+
+.image-input-group .remove-image {
+    flex-shrink: 0;
+}
+
+/* Reset e base styles */
 * {
     margin: 0;
     padding: 0;

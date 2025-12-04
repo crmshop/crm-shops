@@ -121,8 +121,17 @@ function showCreateProductForm() {
                         <input type="number" id="product-price" step="0.01" min="0">
                     </div>
                     <div class="form-group">
-                        <label>URL Immagine</label>
-                        <input type="url" id="product-image-url">
+                        <label>Immagini Prodotto (max 3 tra upload e URL)</label>
+                        <div id="product-images-container">
+                            <div class="image-input-group">
+                                <input type="file" class="product-image-file" accept="image/*">
+                                <input type="url" class="product-image-url" placeholder="Oppure inserisci URL">
+                                <button type="button" class="btn btn-small btn-danger remove-image" style="display:none;">Rimuovi</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-small" id="add-image-input" style="margin-top: 10px;">+ Aggiungi Immagine</button>
+                        <small>Puoi aggiungere massimo 3 immagini (file o URL)</small>
+                        <div id="product-images-preview" class="photos-preview"></div>
                     </div>
                     <div class="form-group">
                         <label>
@@ -149,6 +158,30 @@ function showCreateProductForm() {
     document.getElementById('product-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         try {
+            // Raccogli immagini (file e URL)
+            const imageGroups = document.querySelectorAll('.image-input-group');
+            const images = [];
+            
+            imageGroups.forEach((group) => {
+                const fileInput = group.querySelector('.product-image-file');
+                const urlInput = group.querySelector('.product-image-url');
+                
+                if (fileInput.files.length > 0) {
+                    images.push({ type: 'file', file: fileInput.files[0] });
+                } else if (urlInput.value.trim()) {
+                    images.push({ type: 'url', url: urlInput.value.trim() });
+                }
+            });
+            
+            if (images.length > 3) {
+                if (window.showError) {
+                    window.showError('Puoi aggiungere massimo 3 immagini');
+                } else {
+                    alert('Puoi aggiungere massimo 3 immagini');
+                }
+                return;
+            }
+            
             const productData = {
                 shop_id: document.getElementById('product-shop').value,
                 name: document.getElementById('product-name').value,
@@ -157,20 +190,45 @@ function showCreateProductForm() {
                 season: document.getElementById('product-season').value || null,
                 occasion: document.getElementById('product-occasion').value || null,
                 price: parseFloat(document.getElementById('product-price').value) || null,
-                image_url: document.getElementById('product-image-url').value || null,
-                available: document.getElementById('product-available').checked
+                available: document.getElementById('product-available').checked,
+                images: images.filter(img => img.type === 'url').map(img => img.url) // Solo URL per ora
             };
             
-            await apiCall('/api/products/', {
+            // Crea prodotto
+            const productResponse = await window.apiCall('/api/products/', {
                 method: 'POST',
                 body: JSON.stringify(productData)
             });
             
-            showSuccess('Prodotto creato con successo!');
+            // Carica file se presenti
+            const fileImages = images.filter(img => img.type === 'file');
+            if (fileImages.length > 0) {
+                const productId = productResponse.product?.id || productResponse.id;
+                for (const img of fileImages) {
+                    const formData = new FormData();
+                    formData.append('file', img.file);
+                    
+                    await window.apiCall(`/api/products/${productId}/images`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {}
+                    });
+                }
+            }
+            
+            if (window.showSuccess) {
+                window.showSuccess('Prodotto creato con successo!');
+            } else {
+                alert('Prodotto creato con successo!');
+            }
             closeModal();
             loadProducts();
         } catch (error) {
-            showError('Errore nella creazione prodotto: ' + error.message);
+            if (window.showError) {
+                window.showError('Errore nella creazione prodotto: ' + error.message);
+            } else {
+                alert('Errore nella creazione prodotto: ' + error.message);
+            }
         }
     });
 }
