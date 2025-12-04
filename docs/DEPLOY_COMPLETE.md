@@ -84,10 +84,11 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 **Impostazioni Base:**
 - **Name**: `crm-shops-frontend`
+- **Type**: `Static Site` (NON Web Service!)
 - **Branch**: `main`
-- **Root Directory**: `/frontend`
+- **Root Directory**: `/` (root del progetto, NON `/frontend`)
 - **Build Command**: (lascia vuoto o `echo 'No build needed'`)
-- **Publish Directory**: `/frontend` (o `/` se root directory è frontend)
+- **Publish Directory**: `frontend` (relativo alla root directory)
 
 ### 3. Variabili d'Ambiente Frontend
 

@@ -20,9 +20,8 @@ services:
       # - SECRET_KEY (genera una chiave sicura)
       # - ALLOWED_ORIGINS (URL del frontend su Render)
 
-  - type: web
+  - type: static
     name: crm-shops-frontend
-    env: static
     buildCommand: echo "Frontend già pronto"
     staticPublishPath: ./frontend
     envVars:
