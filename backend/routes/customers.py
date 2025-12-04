@@ -259,7 +259,15 @@ async def upload_customer_photo(
     """Carica una foto per un cliente (solo negozianti)"""
     # Usa admin client per upload Storage (bypassa RLS)
     from backend.database import get_supabase_admin
-    supabase_admin = get_supabase_admin()
+    try:
+        supabase_admin = get_supabase_admin()
+        logger.info("✅ Client Supabase Admin inizializzato correttamente")
+    except Exception as e:
+        logger.error(f"❌ Errore inizializzazione Supabase Admin: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Errore configurazione backend: SUPABASE_SERVICE_KEY potrebbe non essere configurata"
+        )
     
     # Usa client normale per query database (rispetta RLS)
     supabase = get_supabase()
@@ -313,7 +321,22 @@ async def upload_customer_photo(
             "consent_given": consent_given
         }
         
-        insert_response = supabase_admin.from_('customer_photos').insert(photo_data).execute()
+        logger.info(f"📝 Tentativo insert customer_photos con admin client: {photo_data}")
+        try:
+            insert_response = supabase_admin.from_('customer_photos').insert(photo_data).execute()
+            logger.info(f"✅ Insert riuscito: {insert_response.data}")
+        except Exception as insert_error:
+            logger.error(f"❌ Errore durante insert con admin client: {insert_error}")
+            logger.error(f"   Tipo errore: {type(insert_error)}")
+            logger.error(f"   Dettagli: {str(insert_error)}")
+            # Verifica se SUPABASE_SERVICE_KEY è configurata
+            from backend.config import settings
+            if not settings.SUPABASE_SERVICE_KEY:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="SUPABASE_SERVICE_KEY non configurata. Configurala su Render Dashboard > Environment Variables"
+                )
+            raise
         
         if not insert_response.data:
             raise HTTPException(
