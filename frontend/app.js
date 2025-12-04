@@ -286,10 +286,10 @@ router.addRoute('/dashboard', () => {
                     <p>Gestisci i tuoi negozi, prodotti e clienti.</p>
                     
                     <div class="dashboard-tabs">
-                        <button class="tab-btn active" onclick="showShopTab('shops')">I Miei Negozi</button>
-                        <button class="tab-btn" onclick="showShopTab('products')">Prodotti</button>
-                        <button class="tab-btn" onclick="showShopTab('customers')">Clienti</button>
-                        <button class="tab-btn" onclick="showShopTab('stats')">Statistiche</button>
+                        <button class="tab-btn active" data-tab="shops">I Miei Negozi</button>
+                        <button class="tab-btn" data-tab="products">Prodotti</button>
+                        <button class="tab-btn" data-tab="customers">Clienti</button>
+                        <button class="tab-btn" data-tab="stats">Statistiche</button>
                     </div>
                     
                     <div id="shop-tab-shops" class="tab-content active">
@@ -381,15 +381,15 @@ router.addRoute('/dashboard', () => {
                     <p>Qui potrai gestire le tue foto, i tuoi outfit e le immagini generate.</p>
                     
                     <div class="dashboard-tabs">
-                        <button class="tab-btn active" onclick="showTab('photos')">Le Mie Foto</button>
-                        <button class="tab-btn" onclick="showTab('outfits')">I Miei Outfit</button>
-                        <button class="tab-btn" onclick="showTab('generated')">Immagini Generate</button>
+                        <button class="tab-btn active" data-tab="photos">Le Mie Foto</button>
+                        <button class="tab-btn" data-tab="outfits">I Miei Outfit</button>
+                        <button class="tab-btn" data-tab="generated">Immagini Generate</button>
                     </div>
                     
                     <div id="tab-photos" class="tab-content active">
                         <div class="section-header">
                             <h4>Le Mie Foto</h4>
-                            <button class="btn btn-primary" onclick="showUploadPhotoForm()">+ Carica Foto</button>
+                            <button class="btn btn-primary" data-action="upload-photo">+ Carica Foto</button>
                         </div>
                         <div id="photos-list" class="photos-grid">
                             <div class="loading">Caricamento foto...</div>
@@ -409,7 +409,7 @@ router.addRoute('/dashboard', () => {
                     <div id="tab-generated" class="tab-content">
                         <div class="section-header">
                             <h4>Immagini Generate</h4>
-                            <button class="btn btn-primary" onclick="showGenerateImageForm()">+ Genera Immagine AI</button>
+                            <button class="btn btn-primary" data-action="generate-image">+ Genera Immagine AI</button>
                         </div>
                         <div id="generated-images-list" class="generated-images-grid">
                             <div class="loading">Caricamento immagini...</div>
