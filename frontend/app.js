@@ -418,21 +418,45 @@ router.addRoute('/dashboard', () => {
                     // Carica script pagine
                     (function() {
                         function loadScript(src, callback) {
-                            if (document.querySelector('script[src="' + src + '"]')) {
+                            // Verifica se lo script è già caricato
+                            const existing = document.querySelector('script[src="' + src + '"]');
+                            if (existing) {
+                                console.log('📜 Script già caricato:', src);
                                 if (callback) callback();
                                 return;
                             }
+                            
+                            console.log('📥 Caricamento script:', src);
                             const script = document.createElement('script');
                             script.src = src;
-                            script.onload = callback;
+                            script.onerror = function() {
+                                console.error('❌ Errore caricamento script:', src);
+                                if (callback) callback();
+                            };
+                            script.onload = function() {
+                                console.log('✅ Script caricato:', src);
+                                if (callback) callback();
+                            };
                             document.head.appendChild(script);
                         }
                         
-                        loadScript('pages/customer_photos.js', () => {
-                            if (window.loadCustomerPhotos) window.loadCustomerPhotos();
-                        });
-                        loadScript('pages/generated_images.js', () => {
-                            if (window.loadGeneratedImages) window.loadGeneratedImages();
+                        Promise.all([
+                            new Promise(resolve => loadScript('pages/customer_photos.js', resolve)),
+                            new Promise(resolve => loadScript('pages/generated_images.js', resolve))
+                        ]).then(() => {
+                            setTimeout(() => {
+                                console.log('✅ Script cliente caricati, funzioni disponibili:', {
+                                    showUploadPhotoForm: !!window.showUploadPhotoForm,
+                                    showGenerateImageForm: !!window.showGenerateImageForm,
+                                    loadCustomerPhotos: !!window.loadCustomerPhotos,
+                                    loadGeneratedImages: !!window.loadGeneratedImages
+                                });
+                                
+                                if (window.loadCustomerPhotos) window.loadCustomerPhotos();
+                                setupEventDelegation();
+                            }, 300);
+                        }).catch(err => {
+                            console.error('❌ Errore caricamento script cliente:', err);
                         });
                     })();
                 </script>
