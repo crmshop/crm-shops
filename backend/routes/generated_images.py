@@ -24,6 +24,14 @@ class GenerateImageRequest(BaseModel):
     prompt_override: Optional[str] = None
 
 
+class GenerateOutfitImageRequest(BaseModel):
+    shop_id: UUID
+    customer_id: UUID  # ID da shop_customers
+    product_ids: List[UUID]  # Max 10 prodotti
+    scenario: Optional[str] = None
+    prompt_override: Optional[str] = None
+
+
 @router.get("/")
 async def list_generated_images(
     customer_photo_id: Optional[UUID] = None,
@@ -170,6 +178,115 @@ async def generate_image(
         raise
     except Exception as e:
         logger.error(f"Errore generazione immagine: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Errore durante la generazione dell'immagine: {str(e)}"
+        )
+
+
+@router.post("/generate-outfit", status_code=status.HTTP_201_CREATED)
+async def generate_outfit_image(
+    request: GenerateOutfitImageRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+):
+    """Genera un'immagine AI combinando foto cliente e più prodotti (outfit)"""
+    try:
+        # Valida numero prodotti (max 10)
+        if len(request.product_ids) > 10:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Puoi selezionare massimo 10 prodotti"
+            )
+        
+        if len(request.product_ids) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Seleziona almeno un prodotto"
+            )
+        
+        # Verifica che il cliente appartenga al negozio
+        customer_response = supabase.table("shop_customers").select("*").eq("id", str(request.customer_id)).eq("shop_id", str(request.shop_id)).execute()
+        if not customer_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cliente non trovato per questo negozio"
+            )
+        
+        customer = customer_response.data[0]
+        
+        # Recupera foto del cliente (prima foto disponibile)
+        customer_photos_response = supabase.table("customer_photos").select("*").eq("customer_id", str(request.customer_id)).limit(1).execute()
+        if not customer_photos_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nessuna foto trovata per questo cliente"
+            )
+        
+        customer_photo = customer_photos_response.data[0]
+        customer_photo_url = customer_photo["image_url"]
+        
+        # Recupera prodotti
+        products_response = supabase.table("products").select("*").in_("id", [str(pid) for pid in request.product_ids]).execute()
+        if not products_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Prodotti non trovati"
+            )
+        
+        products = products_response.data
+        product_image_urls = [p.get("image_url") for p in products if p.get("image_url")]
+        
+        if not product_image_urls:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nessun prodotto ha un'immagine disponibile"
+            )
+        
+        # Costruisci prompt
+        prompt = request.prompt_override
+        if not prompt:
+            product_names = [p.get("name", "") for p in products]
+            prompt = f"Create a realistic image of the person from the customer photo wearing the following items: {', '.join(product_names)}. High quality, professional photography style."
+        
+        # Genera immagine usando Gemini con più prodotti
+        from backend.services.gemini import gemini_service
+        
+        ai_result = await gemini_service.generate_outfit_image(
+            customer_photo_url=customer_photo_url,
+            product_image_urls=product_image_urls,
+            prompt=prompt,
+            scenario=request.scenario
+        )
+        
+        generated_image_url = ai_result.get("image_url", "")
+        
+        # Salva immagine generata
+        image_data = {
+            "customer_photo_id": str(customer_photo["id"]),
+            "image_url": generated_image_url,
+            "prompt_used": prompt,
+            "scenario": request.scenario,
+            "ai_service": "gemini"
+        }
+        
+        result = supabase.table("generated_images").insert(image_data).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Errore durante la generazione dell'immagine"
+            )
+        
+        return {
+            "message": "Immagine outfit generata con successo",
+            "image": result.data[0],
+            "image_url": generated_image_url
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Errore generazione immagine outfit: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Errore durante la generazione dell'immagine: {str(e)}"

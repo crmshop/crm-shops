@@ -166,6 +166,135 @@ class GeminiService:
             # Fallback a placeholder
             return "https://via.placeholder.com/1024x1024?text=AI+Generated+Image"
     
+    async def generate_outfit_image(
+        self,
+        customer_photo_url: str,
+        product_image_urls: List[str],
+        prompt: Optional[str] = None,
+        scenario: Optional[str] = None,
+        model: str = "gemini-1.5-pro-vision"
+    ) -> Dict[str, Any]:
+        """
+        Genera un'immagine combinando foto cliente e più prodotti (outfit) usando Gemini
+        
+        Args:
+            customer_photo_url: URL della foto del cliente
+            product_image_urls: Lista di URL delle immagini dei prodotti (max 10)
+            prompt: Prompt personalizzato (opzionale)
+            scenario: Scenario/contesto
+            model: Modello Gemini da usare
+        
+        Returns:
+            Dict con 'image_url', 'status'
+        """
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY non configurata")
+        
+        if len(product_image_urls) > 10:
+            raise ValueError("Massimo 10 prodotti supportati")
+        
+        try:
+            # Costruisci prompt se non fornito
+            if not prompt:
+                prompt = self._build_prompt(scenario)
+                prompt += f" The person should be wearing {len(product_image_urls)} item(s) from the product images."
+            
+            # Scarica le immagini per includerle nella richiesta
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Scarica foto cliente
+                customer_response = await client.get(customer_photo_url)
+                customer_response.raise_for_status()
+                customer_image_data = base64.b64encode(customer_response.content).decode('utf-8')
+                
+                # Scarica immagini prodotti
+                product_images_data = []
+                for product_url in product_image_urls:
+                    try:
+                        product_response = await client.get(product_url)
+                        product_response.raise_for_status()
+                        product_image_data = base64.b64encode(product_response.content).decode('utf-8')
+                        product_images_data.append(product_image_data)
+                    except Exception as e:
+                        logger.warning(f"Errore nel caricare immagine prodotto {product_url}: {e}")
+                        continue
+            
+            if not product_images_data:
+                raise ValueError("Nessuna immagine prodotto valida caricata")
+            
+            # Prepara contenuto per Gemini (multimodale con più immagini)
+            parts = [
+                {
+                    "text": f"{prompt}\n\nGenerate a realistic image of the person from the first image wearing all the clothing items from the following product images."
+                },
+                {
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": customer_image_data
+                    }
+                }
+            ]
+            
+            # Aggiungi tutte le immagini prodotti
+            for product_data in product_images_data:
+                parts.append({
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": product_data
+                    }
+                })
+            
+            contents = [{"parts": parts}]
+            
+            # Chiamata API Gemini
+            async with httpx.AsyncClient(timeout=180.0) as client:  # Timeout più lungo per più immagini
+                response = await client.post(
+                    f"{self.base_url}/models/{model}:generateContent",
+                    params={"key": self.api_key},
+                    json={
+                        "contents": contents,
+                        "generationConfig": {
+                            "temperature": 0.7,
+                            "topK": 40,
+                            "topP": 0.95,
+                            "maxOutputTokens": 2048  # Più token per prompt più complesso
+                        }
+                    }
+                )
+                
+                response.raise_for_status()
+                result = response.json()
+                
+                # Gemini può restituire testo o immagini generate
+                if "candidates" in result and len(result["candidates"]) > 0:
+                    candidate = result["candidates"][0]
+                    if "content" in candidate and "parts" in candidate["content"]:
+                        # Cerca dati immagine nella risposta
+                        for part in candidate["content"]["parts"]:
+                            if "inline_data" in part:
+                                image_data = part["inline_data"]["data"]
+                                # Salva l'immagine generata su Supabase Storage
+                                image_url = await self._save_generated_image(image_data)
+                                return {
+                                    "image_url": image_url,
+                                    "status": "completed",
+                                    "ai_service": "gemini"
+                                }
+                
+                # Se non c'è immagine nella risposta, usa un placeholder
+                logger.warning("Gemini non ha restituito immagine, usando placeholder")
+                return {
+                    "image_url": "https://via.placeholder.com/1024x1024?text=AI+Generated+Outfit",
+                    "status": "completed",
+                    "ai_service": "gemini"
+                }
+                    
+        except httpx.HTTPError as e:
+            logger.error(f"Errore HTTP Gemini: {e}")
+            raise Exception(f"Errore comunicazione Gemini: {str(e)}")
+        except Exception as e:
+            logger.error(f"Errore generazione outfit Gemini: {e}")
+            raise
+    
     def _build_prompt(self, scenario: Optional[str] = None) -> str:
         """Costruisci prompt base per generazione immagine"""
         base_prompt = "Create a realistic image of a person wearing the clothing item shown in the second image. The person should be from the first image. High quality, professional photography style."

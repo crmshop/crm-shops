@@ -15,10 +15,10 @@ router = APIRouter(prefix="/api/outfits", tags=["outfit"])
 
 
 class OutfitCreate(BaseModel):
-    user_id: UUID
+    customer_id: UUID  # ID cliente da shop_customers
     shop_id: UUID
     name: Optional[str] = None
-    product_ids: List[UUID]
+    product_ids: List[UUID]  # Max 10 prodotti
 
 
 class OutfitResponse(BaseModel):

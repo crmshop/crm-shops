@@ -115,10 +115,11 @@ function updateNav() {
     const navLogin = document.getElementById('nav-login');
     const navRegister = document.getElementById('nav-register');
     const navDashboard = document.getElementById('nav-dashboard');
-    const navShops = document.getElementById('nav-shops');
-    const navProducts = document.getElementById('nav-products');
-    const navCustomers = document.getElementById('nav-customers');
-    const navLogout = document.getElementById('nav-logout');
+        const navShops = document.getElementById('nav-shops');
+        const navProducts = document.getElementById('nav-products');
+        const navCustomers = document.getElementById('nav-customers');
+        const navOutfits = document.getElementById('nav-outfits');
+        const navLogout = document.getElementById('nav-logout');
     
     if (isAuthenticated) {
         if (navLogin) navLogin.style.display = 'none';
@@ -131,10 +132,12 @@ function updateNav() {
             if (navShops) navShops.style.display = 'inline';
             if (navProducts) navProducts.style.display = 'inline';
             if (navCustomers) navCustomers.style.display = 'inline';
+            if (navOutfits) navOutfits.style.display = 'inline';
         } else {
             if (navShops) navShops.style.display = 'none';
             if (navProducts) navProducts.style.display = 'none';
             if (navCustomers) navCustomers.style.display = 'none';
+            if (navOutfits) navOutfits.style.display = 'none';
         }
     } else {
         if (navLogin) navLogin.style.display = 'inline';
@@ -143,6 +146,7 @@ function updateNav() {
         if (navShops) navShops.style.display = 'none';
         if (navProducts) navProducts.style.display = 'none';
         if (navCustomers) navCustomers.style.display = 'none';
+        if (navOutfits) navOutfits.style.display = 'none';
         if (navLogout) navLogout.style.display = 'none';
     }
 }
@@ -512,6 +516,33 @@ router.addRoute('/products', async () => {
             window.loadProducts();
         } else {
             console.error('loadProducts non disponibile');
+        }
+    }, 100);
+});
+
+// Route: Outfits
+router.addRoute('/outfits', async () => {
+    if (!state.user || state.user.role !== 'negoziante') {
+        router.navigate('/dashboard');
+        return;
+    }
+    
+    document.getElementById('main-content').innerHTML = `
+        <div class="outfits-page">
+            <h2>Gestione Outfit</h2>
+            <button class="btn btn-primary" data-action="create-outfit">+ Nuovo Outfit</button>
+            <div id="outfits-list" class="outfits-grid">
+                <div class="loading">Caricamento outfit...</div>
+            </div>
+        </div>
+    `;
+    
+    // Gli script sono già caricati in index.html
+    setTimeout(() => {
+        if (window.loadOutfits) {
+            window.loadOutfits();
+        } else {
+            console.error('loadOutfits non disponibile');
         }
     }, 100);
 });
