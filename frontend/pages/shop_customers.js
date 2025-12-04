@@ -1,4 +1,14 @@
 // Pagina gestione clienti per negozianti
+// Usa namespace per evitare conflitti se script caricato più volte
+(function() {
+    'use strict';
+    
+    // Verifica se già inizializzato
+    if (window.customersPageInitialized) {
+        return;
+    }
+    window.customersPageInitialized = true;
+    
 let currentCustomers = [];
 let currentShops = [];
 

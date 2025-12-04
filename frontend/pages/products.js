@@ -1,4 +1,14 @@
 // Pagina gestione prodotti per negozianti
+// Usa namespace per evitare conflitti se script caricato più volte
+(function() {
+    'use strict';
+    
+    // Verifica se già inizializzato
+    if (window.productsPageInitialized) {
+        return;
+    }
+    window.productsPageInitialized = true;
+    
 let currentProducts = [];
 
 async function loadProducts() {

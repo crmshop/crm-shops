@@ -1,5 +1,14 @@
 // Gestione negozi per negozianti
-
+// Usa namespace per evitare conflitti se script caricato più volte
+(function() {
+    'use strict';
+    
+    // Verifica se già inizializzato
+    if (window.shopsPageInitialized) {
+        return;
+    }
+    window.shopsPageInitialized = true;
+    
 // Usa API_BASE_URL globale da app.js o fallback
 const getApiBaseUrl = () => window.API_BASE_URL || window.CONFIG?.API_BASE_URL || 'http://localhost:8000';
 
