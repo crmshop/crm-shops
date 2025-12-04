@@ -343,6 +343,9 @@ router.addRoute('/dashboard', () => {
                             document.head.appendChild(script);
                         }
                         
+                        loadScript('pages/shops.js', () => {
+                            if (window.loadShops) window.loadShops();
+                        });
                         loadScript('pages/products.js', () => {
                             if (window.loadProducts) window.loadProducts();
                         });
@@ -559,7 +562,9 @@ function showShopTab(tabName) {
     }
     
     // Carica dati quando si cambia tab
-    if (tabName === 'products' && window.loadProducts) {
+    if (tabName === 'shops' && window.loadShops) {
+        window.loadShops();
+    } else if (tabName === 'products' && window.loadProducts) {
         window.loadProducts();
     } else if (tabName === 'customers' && window.loadCustomers) {
         window.loadCustomers();
