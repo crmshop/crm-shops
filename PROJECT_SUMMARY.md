@@ -259,3 +259,5 @@ Il progetto è completo e pronto per il deploy. Tutte le funzionalità principal
 Buon deploy! 🚀
 
 
+
+

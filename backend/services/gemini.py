@@ -28,7 +28,16 @@ class GeminiService:
         model: str = "gemini-1.5-pro-vision"  # Modello vision per immagini
     ) -> Dict[str, Any]:
         """
-        Genera un'immagine combinando foto cliente e prodotto usando Gemini
+        Sei un creatore di moda che genera immagini di clienti che indossano i prodotti selezionati.
+        Devi creare un'immagine realistica di un cliente che indossa i prodotti selezionati.
+        Genera un'immagine combinando foto cliente e prodotti usando Gemini.
+        Il cliente deve essere realista e la foto deve essere di alta qualità.
+        I prodotti deve essere di alta qualità e realista.
+        Il background deve essere realista e la foto deve essere di alta qualità.
+        Il cliente deve essere di una persona maschile o femminile.
+        I prodotti deve essere di un abbigliamento o un accessorio.
+        Il background deve essere di un luogo che diene dedinito dal cliente o dal negoziante in base al tipo di prodotto.
+        
         
         Args:
             customer_photo_url: URL della foto del cliente

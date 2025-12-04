@@ -45,3 +45,5 @@ COMMENT ON TABLE public.shop_customers IS 'Clienti interni del negozio - creati 
 COMMENT ON COLUMN public.customer_photos.customer_id IS 'ID cliente negozio (se caricata dal negoziante), altrimenti NULL se è user_id (cliente esterno)';
 
 
+
+

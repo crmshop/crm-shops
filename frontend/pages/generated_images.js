@@ -220,3 +220,5 @@ window.closeGenerateModal = closeGenerateModal;
 window.loadGeneratedImages = loadGeneratedImages;
 
 
+
+

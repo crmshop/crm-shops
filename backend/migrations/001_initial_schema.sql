@@ -157,3 +157,5 @@ CREATE TRIGGER update_prompts_updated_at BEFORE UPDATE ON public.prompts
 
 
 
+
+

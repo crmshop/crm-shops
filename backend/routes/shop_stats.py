@@ -144,3 +144,5 @@ async def get_all_shops_stats(
         )
 
 
+
+

@@ -15,3 +15,5 @@ CREATE INDEX IF NOT EXISTS idx_purchases_outfit ON public.purchases(outfit_id);
 
 
 
+
+

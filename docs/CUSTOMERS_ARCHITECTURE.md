@@ -136,3 +136,5 @@ La migrazione:
 - Aggiunge trigger per `updated_at`
 
 
+
+
