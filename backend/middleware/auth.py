@@ -62,6 +62,18 @@ async def get_current_user(
         )
 
 
+async def get_current_shop_owner(
+    current_user: dict = Depends(get_current_user)
+):
+    """Ottiene l'utente corrente e verifica che sia un negoziante"""
+    if current_user.get("role") != "negoziante":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accesso negato. Solo i negozianti possono accedere a questa risorsa"
+        )
+    return current_user
+
+
 async def require_role(required_role: str):
     """Dependency per richiedere un ruolo specifico"""
     async def role_checker(current_user: dict = Depends(get_current_user)):
