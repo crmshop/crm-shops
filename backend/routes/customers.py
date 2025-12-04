@@ -303,7 +303,7 @@ async def upload_customer_photo(
         # Ottieni URL pubblico
         public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
         
-        # Salva metadati nel database
+        # Salva metadati nel database usando admin client (bypassa RLS)
         # Usa customer_id (cliente negozio) invece di user_id (cliente esterno)
         photo_data = {
             "customer_id": str(customer_id),  # Cliente negozio (non ha user_id)
@@ -313,7 +313,7 @@ async def upload_customer_photo(
             "consent_given": consent_given
         }
         
-        insert_response = supabase.from_('customer_photos').insert(photo_data).execute()
+        insert_response = supabase_admin.from_('customer_photos').insert(photo_data).execute()
         
         if not insert_response.data:
             raise HTTPException(

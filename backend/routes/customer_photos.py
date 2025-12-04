@@ -155,7 +155,8 @@ async def upload_customer_photo(
         if shop_id:
             photo_data["shop_id"] = str(shop_id)
         
-        result = supabase.table("customer_photos").insert(photo_data).execute()
+        # Usa admin client per insert (bypassa RLS)
+        result = supabase_admin.table("customer_photos").insert(photo_data).execute()
         
         if not result.data:
             raise HTTPException(
