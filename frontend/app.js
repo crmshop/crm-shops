@@ -531,6 +531,87 @@ function showError(message) {
     }
 }
 
+// Event delegation globale per gestire click su elementi dinamici
+function setupEventDelegation() {
+    // Rimuovi listener precedenti se esistono
+    if (window._actionClickHandler) {
+        document.removeEventListener('click', window._actionClickHandler);
+    }
+    if (window._tabClickHandler) {
+        document.removeEventListener('click', window._tabClickHandler);
+    }
+    
+    // Gestore per action buttons
+    window._actionClickHandler = function(e) {
+        const action = e.target.getAttribute('data-action');
+        if (!action) return;
+        
+        switch(action) {
+            case 'create-shop':
+                if (window.showCreateShopForm) {
+                    window.showCreateShopForm();
+                } else {
+                    console.warn('showCreateShopForm non ancora caricata');
+                }
+                break;
+            case 'create-product':
+                if (window.showCreateProductForm) {
+                    window.showCreateProductForm();
+                } else {
+                    console.warn('showCreateProductForm non ancora caricata');
+                }
+                break;
+            case 'create-customer':
+                if (window.showCreateCustomerForm) {
+                    window.showCreateCustomerForm();
+                } else {
+                    console.warn('showCreateCustomerForm non ancora caricata');
+                }
+                break;
+            case 'create-outfit':
+                if (window.showCreateOutfitForm) {
+                    window.showCreateOutfitForm();
+                } else {
+                    console.warn('showCreateOutfitForm non ancora caricata');
+                }
+                break;
+            case 'generate-image':
+                if (window.showGenerateImageForm) {
+                    window.showGenerateImageForm();
+                } else {
+                    console.warn('showGenerateImageForm non ancora caricata');
+                }
+                break;
+            case 'upload-photo':
+                if (window.showUploadPhotoForm) {
+                    window.showUploadPhotoForm();
+                } else {
+                    console.warn('showUploadPhotoForm non ancora caricata');
+                }
+                break;
+        }
+    };
+    
+    // Gestore per tab buttons
+    window._tabClickHandler = function(e) {
+        const tabAction = e.target.getAttribute('data-tab');
+        if (!tabAction) return;
+        
+        if (e.target.closest('.dashboard-negoziante')) {
+            if (window.showShopTab) {
+                window.showShopTab(tabAction);
+            }
+        } else if (e.target.closest('.dashboard-cliente')) {
+            if (window.showTab) {
+                window.showTab(tabAction);
+            }
+        }
+    };
+    
+    document.addEventListener('click', window._actionClickHandler);
+    document.addEventListener('click', window._tabClickHandler);
+}
+
 // Tab Management per negoziante
 function showShopTab(tabName) {
     document.querySelectorAll('#shop-tab-' + tabName.split('-')[0] + ' ~ .tab-content, .tab-content[id^="shop-tab-"]').forEach(tab => {
@@ -583,6 +664,10 @@ window.showTab = showTab;
 window.showShopTab = showShopTab;
 window.showSuccess = showSuccess;
 window.showError = showError;
+window.setupEventDelegation = setupEventDelegation;
+
+// Inizializza event delegation all'avvio
+setupEventDelegation();
 
 // Inizializza app
 document.addEventListener('DOMContentLoaded', async () => {
