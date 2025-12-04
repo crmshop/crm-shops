@@ -112,11 +112,39 @@ function loadAuth() {
 
 function updateNav() {
     const isAuthenticated = !!state.user;
-    document.getElementById('nav-login').style.display = isAuthenticated ? 'none' : 'inline';
-    document.getElementById('nav-register').style.display = isAuthenticated ? 'none' : 'inline';
-    document.getElementById('nav-dashboard').style.display = isAuthenticated ? 'inline' : 'none';
-    document.getElementById('nav-products').style.display = isAuthenticated ? 'inline' : 'none';
-    document.getElementById('nav-logout').style.display = isAuthenticated ? 'inline' : 'none';
+    const navLogin = document.getElementById('nav-login');
+    const navRegister = document.getElementById('nav-register');
+    const navDashboard = document.getElementById('nav-dashboard');
+    const navShops = document.getElementById('nav-shops');
+    const navProducts = document.getElementById('nav-products');
+    const navCustomers = document.getElementById('nav-customers');
+    const navLogout = document.getElementById('nav-logout');
+    
+    if (isAuthenticated) {
+        if (navLogin) navLogin.style.display = 'none';
+        if (navRegister) navRegister.style.display = 'none';
+        if (navDashboard) navDashboard.style.display = 'inline';
+        if (navLogout) navLogout.style.display = 'inline';
+        
+        // Mostra link specifici per ruolo
+        if (state.user && state.user.role === 'negoziante') {
+            if (navShops) navShops.style.display = 'inline';
+            if (navProducts) navProducts.style.display = 'inline';
+            if (navCustomers) navCustomers.style.display = 'inline';
+        } else {
+            if (navShops) navShops.style.display = 'none';
+            if (navProducts) navProducts.style.display = 'none';
+            if (navCustomers) navCustomers.style.display = 'none';
+        }
+    } else {
+        if (navLogin) navLogin.style.display = 'inline';
+        if (navRegister) navRegister.style.display = 'inline';
+        if (navDashboard) navDashboard.style.display = 'none';
+        if (navShops) navShops.style.display = 'none';
+        if (navProducts) navProducts.style.display = 'none';
+        if (navCustomers) navCustomers.style.display = 'none';
+        if (navLogout) navLogout.style.display = 'none';
+    }
 }
 
 // Utility UI
