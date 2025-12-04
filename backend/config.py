@@ -38,7 +38,8 @@ class Settings(BaseSettings):
         env_file=".env",
         case_sensitive=True,
         extra="ignore",  # Ignora campi extra nel .env
-        env_parse_none_str=True  # Tratta stringhe vuote come None
+        env_parse_none_str=True,  # Tratta stringhe vuote come None
+        env_prefix=""  # Nessun prefisso per le env vars
     )
     
     # Supabase
@@ -63,11 +64,12 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # CORS - Usa str invece di List[str] per evitare problemi di parsing Pydantic
+    # Mappa ALLOWED_ORIGINS env var a questo campo
     ALLOWED_ORIGINS_STR: str = ""
     
     def get_allowed_origins(self) -> List[str]:
         """Metodo per ottenere ALLOWED_ORIGINS come lista"""
-        # Leggi dalla variabile d'ambiente direttamente
+        # Leggi dalla variabile d'ambiente direttamente (Pydantic non mapperà automaticamente)
         env_value = os.getenv("ALLOWED_ORIGINS", "")
         value = self.ALLOWED_ORIGINS_STR or env_value
         return parse_origins(value)
@@ -76,6 +78,14 @@ class Settings(BaseSettings):
     def ALLOWED_ORIGINS(self) -> List[str]:
         """Property per compatibilità con codice esistente"""
         return self.get_allowed_origins()
+    
+    def model_post_init(self, __context):
+        """Post-init per leggere ALLOWED_ORIGINS dalla env var"""
+        # Se ALLOWED_ORIGINS_STR è vuoto, leggi da env var
+        if not self.ALLOWED_ORIGINS_STR:
+            env_value = os.getenv("ALLOWED_ORIGINS", "")
+            if env_value:
+                self.ALLOWED_ORIGINS_STR = env_value
     
     @field_validator('DEBUG', mode='before')
     @classmethod
