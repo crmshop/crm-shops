@@ -13,14 +13,25 @@ let currentCustomers = [];
 let currentShops = [];
 
 async function loadCustomers() {
+    const container = document.getElementById('customers-list');
+    if (!container) {
+        console.warn('Container customers-list non trovato');
+        return;
+    }
+    
     try {
-        const data = await apiCall('/api/customers/');
+        console.log('📥 Caricamento clienti...');
+        const data = await window.apiCall('/api/customers/');
+        console.log('✅ Clienti caricati:', data);
         currentCustomers = data.customers || data || [];
         renderCustomers();
     } catch (error) {
-        showError('Errore nel caricamento clienti: ' + error.message);
+        console.error('❌ Errore caricamento clienti:', error);
         currentCustomers = [];
-        renderCustomers();
+        container.innerHTML = `<p class="error">Errore nel caricamento clienti: ${error.message}</p>`;
+        if (window.showError) {
+            window.showError('Errore nel caricamento clienti: ' + error.message);
+        }
     }
 }
 
@@ -37,7 +48,12 @@ async function loadShops() {
 
 function renderCustomers() {
     const container = document.getElementById('customers-list');
-    if (!container) return;
+    if (!container) {
+        console.warn('Container customers-list non trovato per rendering');
+        return;
+    }
+    
+    console.log('🎨 Rendering clienti:', currentCustomers.length);
     
     if (currentCustomers.length === 0) {
         container.innerHTML = `

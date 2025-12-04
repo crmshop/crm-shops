@@ -12,18 +12,35 @@
 let currentProducts = [];
 
 async function loadProducts() {
+    const container = document.getElementById('products-list');
+    if (!container) {
+        console.warn('Container products-list non trovato');
+        return;
+    }
+    
     try {
-        const data = await apiCall('/api/products/');
+        console.log('📥 Caricamento prodotti...');
+        const data = await window.apiCall('/api/products/');
+        console.log('✅ Prodotti caricati:', data);
         currentProducts = data.products || [];
         renderProducts();
     } catch (error) {
-        showError('Errore nel caricamento prodotti: ' + error.message);
+        console.error('❌ Errore caricamento prodotti:', error);
+        container.innerHTML = `<p class="error">Errore nel caricamento prodotti: ${error.message}</p>`;
+        if (window.showError) {
+            window.showError('Errore nel caricamento prodotti: ' + error.message);
+        }
     }
 }
 
 function renderProducts() {
     const container = document.getElementById('products-list');
-    if (!container) return;
+    if (!container) {
+        console.warn('Container products-list non trovato per rendering');
+        return;
+    }
+    
+    console.log('🎨 Rendering prodotti:', currentProducts.length);
     
     if (currentProducts.length === 0) {
         container.innerHTML = '<p class="empty-state">Nessun prodotto. Crea il primo prodotto!</p>';

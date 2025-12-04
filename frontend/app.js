@@ -330,46 +330,29 @@ router.addRoute('/dashboard', () => {
                 </div>
                 
                 <script>
-                    // Carica script pagine negoziante
+                    // Gli script sono già caricati in index.html
+                    // Inizializza dopo che il DOM è pronto
                     (function() {
-                        function loadScript(src, callback) {
-                            if (document.querySelector('script[src="' + src + '"]')) {
-                                if (callback) callback();
-                                return;
+                        setTimeout(() => {
+                            console.log('✅ Verifica funzioni disponibili:', {
+                                showCreateShopForm: !!window.showCreateShopForm,
+                                showCreateProductForm: !!window.showCreateProductForm,
+                                showCreateCustomerForm: !!window.showCreateCustomerForm,
+                                loadShops: !!window.loadShops,
+                                loadProducts: !!window.loadProducts,
+                                loadCustomers: !!window.loadCustomers
+                            });
+                            
+                            // Carica dati iniziali per il tab attivo (shops)
+                            if (window.loadShops) {
+                                window.loadShops();
+                            } else {
+                                console.error('❌ loadShops non disponibile');
                             }
-                            const script = document.createElement('script');
-                            script.src = src;
-                            script.onload = callback;
-                            document.head.appendChild(script);
-                        }
-                        
-                        // Carica tutti gli script in parallelo e poi inizializza
-                        Promise.all([
-                            new Promise(resolve => loadScript('pages/shops.js', resolve)),
-                            new Promise(resolve => loadScript('pages/products.js', resolve)),
-                            new Promise(resolve => loadScript('pages/shop_customers.js', resolve)),
-                            new Promise(resolve => loadScript('pages/shop_stats.js', resolve))
-                        ]).then(() => {
-                            // Attendi un momento per assicurarsi che le funzioni siano esportate
-                            setTimeout(() => {
-                                console.log('✅ Script caricati, funzioni disponibili:', {
-                                    showCreateShopForm: !!window.showCreateShopForm,
-                                    showCreateProductForm: !!window.showCreateProductForm,
-                                    showCreateCustomerForm: !!window.showCreateCustomerForm,
-                                    loadShops: !!window.loadShops,
-                                    loadProducts: !!window.loadProducts,
-                                    loadCustomers: !!window.loadCustomers
-                                });
-                                
-                                // Dopo che tutti gli script sono caricati, inizializza
-                                if (window.loadShops) window.loadShops();
-                                
-                                // Riconfigura event delegation dopo caricamento script
-                                setupEventDelegation();
-                            }, 300);
-                        }).catch(err => {
-                            console.error('❌ Errore caricamento script:', err);
-                        });
+                            
+                            // Assicura che event delegation sia configurato
+                            setupEventDelegation();
+                        }, 100);
                     })();
                 </script>
             ` : `

@@ -44,20 +44,28 @@ async function apiCall(endpoint, options = {}) {
 
 // Carica lista negozi
 async function loadShops() {
+    const container = document.getElementById('shops-list');
+    if (!container) {
+        console.warn('Container shops-list non trovato');
+        return [];
+    }
+    
     try {
         const user = JSON.parse(localStorage.getItem('crm_user') || '{}');
         if (!user.id) {
             console.error('Utente non autenticato');
+            container.innerHTML = '<p class="error">Utente non autenticato</p>';
             return [];
         }
         
+        console.log('📥 Caricamento negozi per utente:', user.id);
         const data = await apiCall(`/api/shops/?owner_id=${user.id}`);
+        console.log('✅ Negozi caricati:', data);
         renderShops(data.shops || []);
         return data.shops || [];
     } catch (error) {
-        console.error('Errore caricamento negozi:', error);
-        document.getElementById('shops-list').innerHTML = 
-            `<p class="error">Errore nel caricamento negozi: ${error.message}</p>`;
+        console.error('❌ Errore caricamento negozi:', error);
+        container.innerHTML = `<p class="error">Errore nel caricamento negozi: ${error.message}</p>`;
         return [];
     }
 }
