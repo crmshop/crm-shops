@@ -308,7 +308,8 @@ async function uploadPhotoForCustomer(customerId) {
         uploadBtnLoading.style.display = 'inline';
         
         const token = localStorage.getItem(AUTH_TOKEN_KEY);
-        const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}/photos`, {
+        const apiBaseUrl = window.API_BASE_URL || window.CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiBaseUrl}/api/customers/${customerId}/photos`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`

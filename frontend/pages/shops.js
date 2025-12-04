@@ -1,6 +1,7 @@
 // Gestione negozi per negozianti
 
-const API_BASE_URL = window.CONFIG?.API_BASE_URL || 'http://localhost:8000';
+// Usa API_BASE_URL globale da app.js o fallback
+const getApiBaseUrl = () => window.API_BASE_URL || window.CONFIG?.API_BASE_URL || 'http://localhost:8000';
 
 // Helper per chiamate API
 async function apiCall(endpoint, options = {}) {
@@ -15,7 +16,7 @@ async function apiCall(endpoint, options = {}) {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
             headers,
             ...options
         });

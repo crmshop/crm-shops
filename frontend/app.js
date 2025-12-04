@@ -41,8 +41,8 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// API helper
-async function apiCall(endpoint, options = {}) {
+// API helper globale
+window.apiCall = async function apiCall(endpoint, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers
