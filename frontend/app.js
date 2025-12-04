@@ -350,11 +350,14 @@ router.addRoute('/dashboard', () => {
                             new Promise(resolve => loadScript('pages/shop_customers.js', resolve)),
                             new Promise(resolve => loadScript('pages/shop_stats.js', resolve))
                         ]).then(() => {
-                            // Dopo che tutti gli script sono caricati, inizializza
-                            if (window.loadShops) window.loadShops();
-                            
-                            // Configura event delegation per gestire tutti i click
-                            setupEventDelegation();
+                            // Attendi un momento per assicurarsi che le funzioni siano esportate
+                            setTimeout(() => {
+                                // Dopo che tutti gli script sono caricati, inizializza
+                                if (window.loadShops) window.loadShops();
+                                
+                                // Riconfigura event delegation dopo caricamento script
+                                setupEventDelegation();
+                            }, 100);
                         });
                     })();
                 </script>
@@ -546,48 +549,42 @@ function setupEventDelegation() {
         const action = e.target.getAttribute('data-action');
         if (!action) return;
         
+        // Se la funzione non è disponibile, attendi e riprova
+        function tryAction(actionName, funcName, retries = 3) {
+            if (window[funcName]) {
+                window[funcName]();
+                return true;
+            } else if (retries > 0) {
+                // Attendi un po' e riprova (gli script potrebbero essere ancora in caricamento)
+                setTimeout(() => {
+                    tryAction(actionName, funcName, retries - 1);
+                }, 200);
+                return false;
+            } else {
+                console.warn(`${funcName} non ancora caricata dopo ${retries} tentativi`);
+                window.showError(`Funzionalità non ancora disponibile. Attendi qualche secondo e riprova.`);
+                return false;
+            }
+        }
+        
         switch(action) {
             case 'create-shop':
-                if (window.showCreateShopForm) {
-                    window.showCreateShopForm();
-                } else {
-                    console.warn('showCreateShopForm non ancora caricata');
-                }
+                tryAction('create-shop', 'showCreateShopForm');
                 break;
             case 'create-product':
-                if (window.showCreateProductForm) {
-                    window.showCreateProductForm();
-                } else {
-                    console.warn('showCreateProductForm non ancora caricata');
-                }
+                tryAction('create-product', 'showCreateProductForm');
                 break;
             case 'create-customer':
-                if (window.showCreateCustomerForm) {
-                    window.showCreateCustomerForm();
-                } else {
-                    console.warn('showCreateCustomerForm non ancora caricata');
-                }
+                tryAction('create-customer', 'showCreateCustomerForm');
                 break;
             case 'create-outfit':
-                if (window.showCreateOutfitForm) {
-                    window.showCreateOutfitForm();
-                } else {
-                    console.warn('showCreateOutfitForm non ancora caricata');
-                }
+                tryAction('create-outfit', 'showCreateOutfitForm');
                 break;
             case 'generate-image':
-                if (window.showGenerateImageForm) {
-                    window.showGenerateImageForm();
-                } else {
-                    console.warn('showGenerateImageForm non ancora caricata');
-                }
+                tryAction('generate-image', 'showGenerateImageForm');
                 break;
             case 'upload-photo':
-                if (window.showUploadPhotoForm) {
-                    window.showUploadPhotoForm();
-                } else {
-                    console.warn('showUploadPhotoForm non ancora caricata');
-                }
+                tryAction('upload-photo', 'showUploadPhotoForm');
                 break;
         }
     };
