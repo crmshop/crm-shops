@@ -3,7 +3,7 @@ Servizio per integrazione Google Gemini API
 """
 import httpx
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from backend.config import settings
 import base64
 
