@@ -3,7 +3,7 @@ Configurazione applicazione
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
-import os
+from pydantic import field_validator
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,31 +19,57 @@ class Settings(BaseSettings):
     )
     
     # Supabase
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
-    SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    DATABASE_URL: str = ""
     
     # AI Services
-    BANANA_PRO_API_KEY: str = os.getenv("BANANA_PRO_API_KEY", "")
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    BANANA_PRO_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
     
     # Application
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    ENVIRONMENT: str = "development"
+    DEBUG: bool = True
+    SECRET_KEY: str = "dev-secret-key-change-in-production"
     
     # Server
-    HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", "8000"))
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
     
-    # CORS
-    ALLOWED_ORIGINS: List[str] = os.getenv(
-        "ALLOWED_ORIGINS", 
-        "http://localhost:3000,http://localhost:8080,http://localhost:5500"
-    ).split(",")
+    # CORS - Pydantic parserà automaticamente stringhe separate da virgola come lista
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://localhost:5500"
+    ]
+    
+    @field_validator('ALLOWED_ORIGINS', mode='before')
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        """Parser per ALLOWED_ORIGINS da stringa separata da virgola"""
+        if isinstance(v, str):
+            # Rimuovi spazi e filtra stringhe vuote
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+    
+    @field_validator('DEBUG', mode='before')
+    @classmethod
+    def parse_debug(cls, v):
+        """Parser per DEBUG da stringa"""
+        if isinstance(v, str):
+            return v.lower() in ("true", "1", "yes", "on")
+        return bool(v)
+    
+    @field_validator('PORT', mode='before')
+    @classmethod
+    def parse_port(cls, v):
+        """Parser per PORT"""
+        if isinstance(v, str):
+            return int(v)
+        return v
 
 
 settings = Settings()

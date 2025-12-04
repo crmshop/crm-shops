@@ -52,6 +52,7 @@ SECRET_KEY=genera_una_chiave_sicura_lunga_e_casuale
 PORT=8000
 
 # CORS (Aggiorna con URL frontend dopo deploy)
+# IMPORTANTE: Usa virgole per separare gli URL, senza spazi extra
 ALLOWED_ORIGINS=https://crm-shops-frontend.onrender.com,http://localhost:5500
 
 # AI Services (Opzionali)
