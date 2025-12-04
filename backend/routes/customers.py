@@ -257,6 +257,11 @@ async def upload_customer_photo(
     current_user: dict = Depends(get_current_shop_owner)
 ):
     """Carica una foto per un cliente (solo negozianti)"""
+    # Usa admin client per upload Storage (bypassa RLS)
+    from backend.database import get_supabase_admin
+    supabase_admin = get_supabase_admin()
+    
+    # Usa client normale per query database (rispetta RLS)
     supabase = get_supabase()
     
     # Verifica che il cliente appartenga a un negozio del negoziante
@@ -286,17 +291,17 @@ async def upload_customer_photo(
         file_content = await file.read()
         file_name = f"{customer_id}/{file.filename}"
         
-        # Carica su Supabase Storage
+        # Carica su Supabase Storage usando admin client (bypassa RLS)
         bucket_name = "customer-photos"
         
-        storage_response = supabase.storage.from_(bucket_name).upload(
+        storage_response = supabase_admin.storage.from_(bucket_name).upload(
             file_name,
             file_content,
             file_options={"content-type": file.content_type or "image/jpeg"}
         )
         
         # Ottieni URL pubblico
-        public_url = supabase.storage.from_(bucket_name).get_public_url(file_name)
+        public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
         
         # Salva metadati nel database
         # Usa customer_id (cliente negozio) invece di user_id (cliente esterno)

@@ -137,11 +137,12 @@ class GeminiService:
     async def _save_generated_image(self, image_data: str) -> str:
         """Salva l'immagine generata su Supabase Storage"""
         try:
-            from backend.database import get_supabase
+            from backend.database import get_supabase_admin
             from uuid import uuid4
             import base64
             
-            supabase = get_supabase()
+            # Usa admin client per upload Storage (bypassa RLS)
+            supabase_admin = get_supabase_admin()
             
             # Decodifica base64
             image_bytes = base64.b64decode(image_data)
@@ -151,14 +152,14 @@ class GeminiService:
             
             # Carica su Supabase Storage
             bucket_name = "generated-images"
-            supabase.storage.from_(bucket_name).upload(
+            supabase_admin.storage.from_(bucket_name).upload(
                 file_name,
                 image_bytes,
                 file_options={"content-type": "image/jpeg"}
             )
             
             # Ottieni URL pubblico
-            public_url = supabase.storage.from_(bucket_name).get_public_url(file_name)
+            public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
             return public_url
             
         except Exception as e:

@@ -123,6 +123,10 @@ async def upload_customer_photo(
 ):
     """Carica una foto cliente su Supabase Storage"""
     try:
+        # Usa admin client per upload Storage (bypassa RLS)
+        from backend.database import get_supabase_admin
+        supabase_admin = get_supabase_admin()
+        
         # Leggi il file
         file_content = await file.read()
         file_name = f"{current_user['id']}/{file.filename}"
@@ -131,14 +135,14 @@ async def upload_customer_photo(
         bucket_name = "customer-photos"
         
         # Verifica che il bucket esista (da configurare manualmente su Supabase)
-        storage_response = supabase.storage.from_(bucket_name).upload(
+        storage_response = supabase_admin.storage.from_(bucket_name).upload(
             file_name,
             file_content,
             file_options={"content-type": file.content_type or "image/jpeg"}
         )
         
         # Ottieni URL pubblico
-        public_url = supabase.storage.from_(bucket_name).get_public_url(file_name)
+        public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
         
         # Salva metadati nel database
         photo_data = {
