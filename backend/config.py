@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # CORS - Pydantic parserà automaticamente stringhe separate da virgola come lista
+    # CORS - Default origins per sviluppo
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:8080",
@@ -50,10 +50,36 @@ class Settings(BaseSettings):
     @classmethod
     def parse_allowed_origins(cls, v):
         """Parser per ALLOWED_ORIGINS da stringa separata da virgola"""
+        # Se è già una lista, restituiscila così com'è
+        if isinstance(v, list):
+            return v
+        
+        # Se è una stringa, parsala
         if isinstance(v, str):
+            # Se è vuota, usa i default
+            if not v.strip():
+                return [
+                    "http://localhost:3000",
+                    "http://localhost:8080",
+                    "http://localhost:5500"
+                ]
             # Rimuovi spazi e filtra stringhe vuote
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+            # Se dopo il parsing è vuota, usa i default
+            if not origins:
+                return [
+                    "http://localhost:3000",
+                    "http://localhost:8080",
+                    "http://localhost:5500"
+                ]
+            return origins
+        
+        # Se è None o altro tipo, usa i default
+        return [
+            "http://localhost:3000",
+            "http://localhost:8080",
+            "http://localhost:5500"
+        ]
     
     @field_validator('DEBUG', mode='before')
     @classmethod
