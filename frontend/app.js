@@ -352,12 +352,23 @@ router.addRoute('/dashboard', () => {
                         ]).then(() => {
                             // Attendi un momento per assicurarsi che le funzioni siano esportate
                             setTimeout(() => {
+                                console.log('✅ Script caricati, funzioni disponibili:', {
+                                    showCreateShopForm: !!window.showCreateShopForm,
+                                    showCreateProductForm: !!window.showCreateProductForm,
+                                    showCreateCustomerForm: !!window.showCreateCustomerForm,
+                                    loadShops: !!window.loadShops,
+                                    loadProducts: !!window.loadProducts,
+                                    loadCustomers: !!window.loadCustomers
+                                });
+                                
                                 // Dopo che tutti gli script sono caricati, inizializza
                                 if (window.loadShops) window.loadShops();
                                 
                                 // Riconfigura event delegation dopo caricamento script
                                 setupEventDelegation();
-                            }, 100);
+                            }, 300);
+                        }).catch(err => {
+                            console.error('❌ Errore caricamento script:', err);
                         });
                     })();
                 </script>
