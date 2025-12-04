@@ -353,25 +353,8 @@ router.addRoute('/dashboard', () => {
                             // Dopo che tutti gli script sono caricati, inizializza
                             if (window.loadShops) window.loadShops();
                             
-                            // Usa event delegation per gestire i click invece di onclick inline
-                            document.addEventListener('click', function(e) {
-                                if (e.target.matches('[data-action="create-shop"]')) {
-                                    e.preventDefault();
-                                    if (window.showCreateShopForm) {
-                                        window.showCreateShopForm();
-                                    }
-                                } else if (e.target.matches('[data-action="create-product"]')) {
-                                    e.preventDefault();
-                                    if (window.showCreateProductForm) {
-                                        window.showCreateProductForm();
-                                    }
-                                } else if (e.target.matches('[data-action="create-customer"]')) {
-                                    e.preventDefault();
-                                    if (window.showCreateCustomerForm) {
-                                        window.showCreateCustomerForm();
-                                    }
-                                }
-                            });
+                            // Configura event delegation per gestire tutti i click
+                            setupEventDelegation();
                         });
                     })();
                 </script>
