@@ -71,44 +71,46 @@ async def list_customers(
         if not shop_ids:
             return []
         
+        # I clienti creati dal negoziante sono nella tabella shop_customers
+        # Non nella tabella users (quelli sono clienti esterni con account)
+        query = supabase.from_('shop_customers').select('*')
+        
         # Filtra per shop_id se specificato, altrimenti tutti i negozi del negoziante
-        query = supabase.from_('users').select('*, shops!inner(id, owner_id)').eq('role', 'cliente')
-        
         if shop_id:
-            query = query.eq('shops.id', str(shop_id))
+            # Verifica che shop_id appartenga al negoziante
+            if str(shop_id) not in [str(sid) for sid in shop_ids]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Non autorizzato a vedere i clienti di questo negozio"
+                )
+            query = query.eq('shop_id', str(shop_id))
         else:
-            query = query.in_('shops.id', [str(sid) for sid in shop_ids])
+            query = query.in_('shop_id', [str(sid) for sid in shop_ids])
         
-        # Per semplicità, recuperiamo i clienti dalla tabella users filtrati per negozio
-        # attraverso le foto cliente o altri dati associati
-        # Alternativa: creare una tabella customers con shop_id
+        customers_response = query.execute()
         
-        # Per ora, recuperiamo i clienti che hanno foto associate ai negozi del negoziante
-        customers_response = supabase.from_('customer_photos').select(
-            'user_id, shops!inner(id, owner_id)'
-        ).in_('shops.id', [str(sid) for sid in shop_ids]).execute()
-        
-        customer_ids = list(set([photo['user_id'] for photo in customers_response.data if photo.get('user_id')]))
-        
-        if not customer_ids:
+        if not customers_response.data:
             return []
         
-        # Recupera i dati dei clienti
-        users_response = supabase.from_('users').select('*').in_('id', customer_ids).eq('role', 'cliente').execute()
-        
-        # Aggiungi shop_id per ogni cliente (dal primo negozio trovato)
+        # Converti i dati in CustomerResponse
         customers = []
-        for user in users_response.data:
-            # Trova il primo shop associato a questo cliente
-            photo_response = supabase.from_('customer_photos').select('shop_id').eq('user_id', user['id']).limit(1).execute()
-            shop_id_for_customer = photo_response.data[0]['shop_id'] if photo_response.data else None
-            
-            customers.append({
-                **user,
-                'shop_id': shop_id_for_customer
-            })
+        for customer_data in customers_response.data:
+            # Aggiungi campi mancanti per compatibilità con CustomerResponse
+            customer_dict = {
+                'id': customer_data.get('id'),
+                'shop_id': customer_data.get('shop_id'),
+                'email': customer_data.get('email'),
+                'full_name': customer_data.get('full_name'),
+                'phone': customer_data.get('phone'),
+                'address': customer_data.get('address'),
+                'notes': customer_data.get('notes'),
+                'created_at': customer_data.get('created_at', customer_data.get('created_at')),
+                'updated_at': customer_data.get('updated_at', customer_data.get('created_at')),
+                'user_id': None  # I clienti shop_customers non hanno user_id
+            }
+            customers.append(CustomerResponse.model_validate(customer_dict))
         
-        return [CustomerResponse.model_validate(c) for c in customers]
+        return customers
         
     except Exception as e:
         logger.error(f"Errore nel listare i clienti: {e}")
