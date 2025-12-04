@@ -419,6 +419,33 @@ router.addRoute('/dashboard', () => {
     `;
 });
 
+// Route: Shops
+router.addRoute('/shops', async () => {
+    if (!state.user || state.user.role !== 'negoziante') {
+        router.navigate('/dashboard');
+        return;
+    }
+    
+    document.getElementById('main-content').innerHTML = `
+        <div class="shops-page">
+            <h2>Gestione Negozi</h2>
+            <button class="btn btn-primary" data-action="create-shop">+ Nuovo Negozio</button>
+            <div id="shops-list" class="shops-grid">
+                <div class="loading">Caricamento negozi...</div>
+            </div>
+        </div>
+    `;
+    
+    // Gli script sono già caricati in index.html
+    setTimeout(() => {
+        if (window.loadShops) {
+            window.loadShops();
+        } else {
+            console.error('loadShops non disponibile');
+        }
+    }, 100);
+});
+
 // Route: Products
 router.addRoute('/products', async () => {
     if (!state.user || state.user.role !== 'negoziante') {
@@ -436,18 +463,41 @@ router.addRoute('/products', async () => {
         </div>
     `;
     
-    // Carica script prodotti se non già caricato
-    if (!window.productsLoaded) {
-        const script = document.createElement('script');
-        script.src = 'pages/products.js';
-        script.onload = () => {
-            window.productsLoaded = true;
-            loadProducts();
-        };
-        document.head.appendChild(script);
-    } else {
-        loadProducts();
+    // Gli script sono già caricati in index.html
+    setTimeout(() => {
+        if (window.loadProducts) {
+            window.loadProducts();
+        } else {
+            console.error('loadProducts non disponibile');
+        }
+    }, 100);
+});
+
+// Route: Customers
+router.addRoute('/customers', async () => {
+    if (!state.user || state.user.role !== 'negoziante') {
+        router.navigate('/dashboard');
+        return;
     }
+    
+    document.getElementById('main-content').innerHTML = `
+        <div class="customers-page">
+            <h2>Gestione Clienti</h2>
+            <button class="btn btn-primary" data-action="create-customer">+ Nuovo Cliente</button>
+            <div id="customers-list" class="customers-grid">
+                <div class="loading">Caricamento clienti...</div>
+            </div>
+        </div>
+    `;
+    
+    // Gli script sono già caricati in index.html
+    setTimeout(() => {
+        if (window.loadCustomers) {
+            window.loadCustomers();
+        } else {
+            console.error('loadCustomers non disponibile');
+        }
+    }, 100);
 });
 
 // Logout
