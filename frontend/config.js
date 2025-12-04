@@ -8,7 +8,7 @@ const CONFIG = {
     // In produzione: URL del backend su Render
     API_BASE_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:8000'
-        : (window.API_BASE_URL || 'https://crm-shops-backend.onrender.com'),
+        : (window.API_BASE_URL || 'https://crm-shops.onrender.com'),
     
     // Timeout per le richieste API (ms)
     API_TIMEOUT: 30000,

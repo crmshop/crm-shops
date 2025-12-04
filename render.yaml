@@ -26,7 +26,7 @@ services:
     staticPublishPath: ./frontend
     envVars:
       - key: API_BASE_URL
-        value: https://crm-shops-backend.onrender.com
+        value: https://crm-shops.onrender.com
     # Nota: Per il frontend statico, devi aggiornare app.js per usare
     # process.env.API_BASE_URL o configurare l'URL dell'API dinamicamente
 

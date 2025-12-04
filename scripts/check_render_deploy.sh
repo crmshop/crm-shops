@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # URL dei servizi (aggiorna se diversi)
-BACKEND_URL="${BACKEND_URL:-https://crm-shops-backend.onrender.com}"
+BACKEND_URL="${BACKEND_URL:-https://crm-shops.onrender.com}"
 FRONTEND_URL="${FRONTEND_URL:-https://crm-shops-frontend.onrender.com}"
 
 echo "📡 URL Configurati:"

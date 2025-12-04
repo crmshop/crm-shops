@@ -70,7 +70,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 1. Clicca **"Create Web Service"**
 2. Attendi il deploy (5-10 minuti)
 3. Verifica che il servizio sia **Live**
-4. Testa l'endpoint: `https://crm-shops-backend.onrender.com/health`
+4. Testa l'endpoint: `https://crm-shops.onrender.com/health`
 
 ## 🌐 Deploy Frontend
 
@@ -95,7 +95,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 Aggiungi:
 
 ```bash
-API_BASE_URL=https://crm-shops-backend.onrender.com
+API_BASE_URL=https://crm-shops.onrender.com
 ```
 
 **Nota**: Aggiorna `frontend/config.js` per usare questa variabile in produzione.
@@ -125,7 +125,7 @@ Modifica `frontend/config.js` per usare l'URL del backend in produzione:
 
 ```javascript
 API_BASE_URL: isProduction 
-    ? 'https://crm-shops-backend.onrender.com' 
+    ? 'https://crm-shops.onrender.com' 
     : 'http://localhost:8000'
 ```
 
@@ -137,10 +137,10 @@ Commit e push le modifiche per triggerare un nuovo deploy.
 
 ```bash
 # Health check
-curl https://crm-shops-backend.onrender.com/health
+curl https://crm-shops.onrender.com/health
 
 # API root
-curl https://crm-shops-backend.onrender.com/
+curl https://crm-shops.onrender.com/
 ```
 
 ### Test Frontend

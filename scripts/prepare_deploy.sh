@@ -35,7 +35,7 @@ cat > dist/frontend/config.js << 'EOF'
 // Configurazione produzione
 (function() {
     window.CONFIG = {
-        API_BASE_URL: process.env.API_BASE_URL || 'https://crm-shops-backend.onrender.com',
+        API_BASE_URL: process.env.API_BASE_URL || 'https://crm-shops.onrender.com',
         AUTH_TOKEN_KEY: 'crm_shops_auth_token',
         USER_ROLE_KEY: 'crm_shops_user_role',
         USER_DATA_KEY: 'crm_shops_user_data'

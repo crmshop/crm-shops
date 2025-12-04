@@ -65,7 +65,7 @@ ALLOWED_ORIGINS = [
 Aggiungi:
 
 ```
-API_BASE_URL=https://crm-shops-backend.onrender.com
+API_BASE_URL=https://crm-shops.onrender.com
 ```
 
 **Nota**: Dovrai aggiornare `frontend/app.js` per usare questa variabile invece di hardcoded `localhost:8000`.
@@ -93,9 +93,9 @@ Se vuoi usare un database Render invece di Supabase:
 
 Dopo il deploy avrai:
 
-- **Backend**: `https://crm-shops-backend.onrender.com`
+- **Backend**: `https://crm-shops.onrender.com`
 - **Frontend**: `https://crm-shops-frontend.onrender.com`
-- **API Docs**: `https://crm-shops-backend.onrender.com/docs`
+- **API Docs**: `https://crm-shops.onrender.com/docs`
 
 ## Monitoring
 
