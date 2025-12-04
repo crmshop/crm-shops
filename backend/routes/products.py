@@ -131,8 +131,24 @@ async def create_product(
                 detail="Categoria deve essere 'vestiti', 'scarpe' o 'accessori'"
             )
         
-        product_data = product.dict()
+        # Valida numero immagini (max 3)
+        images = product.images or []
+        if product.image_url:  # Supporto retrocompatibilità
+            images.append(product.image_url)
+        images = list(set(images))[:3]  # Rimuovi duplicati e limita a max 3
+        
+        if len(images) > 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Puoi aggiungere massimo 3 immagini"
+            )
+        
+        # Usa la prima immagine come image_url principale per retrocompatibilità
+        primary_image_url = images[0] if images else product.image_url
+        
+        product_data = product.dict(exclude={'images'})  # Escludi images dal dict
         product_data["shop_id"] = str(product_data["shop_id"])
+        product_data["image_url"] = primary_image_url  # Usa la prima immagine
         
         result = supabase.table("products").insert(product_data).execute()
         
@@ -144,7 +160,9 @@ async def create_product(
         
         return {
             "message": "Prodotto creato con successo",
-            "product": result.data[0]
+            "product": result.data[0],
+            "images_count": len(images),
+            "images": images  # Restituisci tutte le immagini URL
         }
     except HTTPException:
         raise
