@@ -24,7 +24,7 @@ Questa guida completa descrive come deployare sia il backend che il frontend su 
 - **Name**: `crm-shops-backend`
 - **Region**: Scegli la regione più vicina (es. `Oregon`)
 - **Branch**: `main` (o il tuo branch principale)
-- **Root Directory**: `/` (root del progetto)
+- **Root Directory**: ⚠️ **LASCIALO VUOTO** (non inserire `/` o `/root` - Render userà automaticamente la root del repository)
 - **Runtime**: `Python 3`
 - **Build Command**: 
   ```bash
@@ -32,7 +32,7 @@ Questa guida completa descrive come deployare sia il backend che il frontend su 
   ```
 - **Start Command**: 
   ```bash
-  uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 2
+  cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
   ```
 
 ### 3. Variabili d'Ambiente Backend
@@ -86,9 +86,9 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 - **Name**: `crm-shops-frontend`
 - **Type**: `Static Site` (NON Web Service!)
 - **Branch**: `main`
-- **Root Directory**: `/` (root del progetto, NON `/frontend`)
+- **Root Directory**: ⚠️ **LASCIALO VUOTO** (non inserire `/` o `/frontend` - Render userà automaticamente la root del repository)
 - **Build Command**: (lascia vuoto o `echo 'No build needed'`)
-- **Publish Directory**: `frontend` (relativo alla root directory)
+- **Publish Directory**: `frontend` (relativo alla root directory, NON `/frontend`)
 
 ### 3. Variabili d'Ambiente Frontend
 
