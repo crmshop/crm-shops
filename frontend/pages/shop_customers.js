@@ -37,7 +37,7 @@ async function loadCustomers() {
 
 async function loadShops() {
     try {
-        const data = await apiCall('/api/shops/');
+        const data = await window.apiCall('/api/shops/');
         currentShops = data.shops || data || [];
         return currentShops;
     } catch (error) {
@@ -49,11 +49,21 @@ async function loadShops() {
 function renderCustomers() {
     const container = document.getElementById('customers-list');
     if (!container) {
-        console.warn('Container customers-list non trovato per rendering');
+        console.warn('⚠️ Container customers-list non trovato per rendering');
+        console.log('🔍 Tentativo di trovare container...');
+        // Prova a trovare il container dopo un breve delay
+        setTimeout(() => {
+            const retryContainer = document.getElementById('customers-list');
+            if (retryContainer && currentCustomers.length > 0) {
+                console.log('✅ Container trovato al retry, rendering...');
+                renderCustomers();
+            }
+        }, 500);
         return;
     }
     
     console.log('🎨 Rendering clienti:', currentCustomers.length);
+    console.log('📋 Dati clienti:', currentCustomers);
     
     if (currentCustomers.length === 0) {
         container.innerHTML = `

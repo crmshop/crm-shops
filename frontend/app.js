@@ -372,15 +372,30 @@ router.addRoute('/dashboard', () => {
                             });
                             
                             // Carica dati iniziali per il tab attivo (shops)
-                            if (window.loadShops) {
+                            const activeTab = document.querySelector('.dashboard-negoziante .tab-btn.active');
+                            const tabName = activeTab ? activeTab.getAttribute('data-tab') : 'shops';
+                            
+                            console.log('📊 Tab attivo:', tabName);
+                            
+                            if (tabName === 'shops' && window.loadShops) {
+                                console.log('📥 Caricamento negozi iniziale...');
                                 window.loadShops();
+                            } else if (tabName === 'products' && window.loadProducts) {
+                                console.log('📥 Caricamento prodotti iniziale...');
+                                window.loadProducts();
+                            } else if (tabName === 'customers' && window.loadCustomers) {
+                                console.log('📥 Caricamento clienti iniziale...');
+                                window.loadCustomers();
                             } else {
-                                console.error('❌ loadShops non disponibile');
+                                // Default: carica negozi
+                                if (window.loadShops) {
+                                    window.loadShops();
+                                }
                             }
                             
                             // Assicura che event delegation sia configurato
                             setupEventDelegation();
-                        }, 100);
+                        }, 200);
                     })();
                 </script>
             ` : `
