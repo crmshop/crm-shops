@@ -399,7 +399,7 @@ router.addRoute('/dashboard', () => {
                     <div id="tab-outfits" class="tab-content">
                         <div class="section-header">
                             <h4>I Miei Outfit</h4>
-                            <button class="btn btn-primary" onclick="showCreateOutfitForm()">+ Crea Outfit</button>
+                            <button class="btn btn-primary" data-action="create-outfit">+ Crea Outfit</button>
                         </div>
                         <div id="outfits-list">
                             <p class="empty-state">Funzionalità outfit in sviluppo...</p>
@@ -454,7 +454,7 @@ router.addRoute('/products', async () => {
     document.getElementById('main-content').innerHTML = `
         <div class="products-page">
             <h2>Gestione Prodotti</h2>
-            <button class="btn btn-primary" onclick="showCreateProductForm()">+ Nuovo Prodotto</button>
+            <button class="btn btn-primary" data-action="create-product">+ Nuovo Prodotto</button>
             <div id="products-list" class="products-grid">
                 <div class="loading">Caricamento prodotti...</div>
             </div>
