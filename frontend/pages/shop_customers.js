@@ -154,7 +154,7 @@ async function createCustomer() {
             notes: document.getElementById('customer-notes').value || null
         };
         
-        await apiCall('/api/customers/', {
+        await window.apiCall('/api/customers/', {
             method: 'POST',
             body: JSON.stringify(customerData)
         });
@@ -225,7 +225,7 @@ async function updateCustomer(customerId) {
             notes: document.getElementById('edit-customer-notes').value || null
         };
         
-        await apiCall(`/api/customers/${customerId}`, {
+        await window.apiCall(`/api/customers/${customerId}`, {
             method: 'PUT',
             body: JSON.stringify(updateData)
         });
@@ -362,7 +362,7 @@ async function uploadPhotoForCustomer(customerId) {
 
 async function viewCustomerPhotos(customerId) {
     try {
-        const data = await apiCall(`/api/customers/${customerId}/photos`);
+        const data = await window.apiCall(`/api/customers/${customerId}/photos`);
         const photos = data.photos || [];
         
         const modalHTML = `
