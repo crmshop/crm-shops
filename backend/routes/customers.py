@@ -331,9 +331,20 @@ async def upload_customer_photo(
             # Verifica se è un errore RLS
             if "row-level security" in str(storage_error).lower() or "unauthorized" in str(storage_error).lower():
                 logger.error("⚠️ Errore RLS su Storage - verifica che SUPABASE_SERVICE_KEY sia corretta")
+                error_detail = (
+                    "Errore RLS su Storage. Questo significa che SUPABASE_SERVICE_KEY non è configurata correttamente.\n\n"
+                    "🔧 COME RISOLVERE:\n"
+                    "1. Vai su Supabase Dashboard > Settings > API\n"
+                    "2. Copia la 'service_role' key (NON la 'anon' key!)\n"
+                    "3. Vai su Render Dashboard > Il tuo servizio backend > Environment\n"
+                    "4. Aggiungi/modifica la variabile: SUPABASE_SERVICE_KEY\n"
+                    "5. Incolla la service_role key come valore\n"
+                    "6. Salva e riavvia il servizio\n\n"
+                    "⚠️ IMPORTANTE: La service_role key è diversa dalla anon key e bypassa le RLS policies."
+                )
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Errore RLS su Storage. Verifica che SUPABASE_SERVICE_KEY sia configurata correttamente su Render"
+                    detail=error_detail
                 )
             raise
         
