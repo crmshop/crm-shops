@@ -16,9 +16,9 @@ class BananaProService:
     
     def __init__(self):
         self.api_key = settings.BANANA_PRO_API_KEY
-        # Banana Pro (Nano Banana Pro) è un modello Google, usa Google AI Studio API
+        # Usa Google Imagen API per generazione immagini con API key di Google AI Studio
+        # Imagen API endpoint: https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
-        # Per Banana Pro non serve più project key, usa solo API key da Google AI Studio
         if not self.api_key:
             logger.warning("BANANA_PRO_API_KEY non configurata")
             logger.warning("   Ottieni la API key da Google AI Studio: https://aistudio.google.com/")
@@ -29,7 +29,7 @@ class BananaProService:
         product_image_url: str,
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
-        model: str = "nano-banana-pro"  # Modello Google Nano Banana Pro
+        model: str = "imagen-3.0-generate-001"  # Modello Google Imagen per generazione immagini
     ) -> Dict[str, Any]:
         """
         Genera un'immagine combinando foto cliente e prodotto
@@ -88,77 +88,66 @@ class BananaProService:
                     logger.error(f"❌ Errore download immagine prodotto: {e}")
                     raise Exception(f"Impossibile scaricare immagine prodotto: {str(e)}")
             
-            # Prepara contenuto per Google AI Studio (formato Gemini API)
-            # Nano Banana Pro usa l'API Gemini con modello specifico
-            contents = [
-                {
-                    "parts": [
-                        {
-                            "text": f"{prompt}\n\nGenerate a realistic image of the person from the first image wearing the clothing item from the second image. High quality, professional photography style."
-                        },
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": customer_image_data
-                            }
-                        },
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": product_image_data
-                            }
-                        }
-                    ]
-                }
-            ]
+            # Prepara payload per Google Imagen API
+            # Imagen API richiede prompt e immagini di riferimento in base64
+            endpoint = f"{self.base_url}/models/{model}:predict"
+            logger.info(f"🚀 Chiamata API Google Imagen: {endpoint}")
             
-            # Usa il modello Nano Banana Pro tramite Google AI Studio API
-            # Il modello potrebbe essere "nano-banana-pro" o un modello Gemini con capacità di generazione immagini
-            endpoint = f"{self.base_url}/models/{model}:generateContent"
-            logger.info(f"🚀 Chiamata API Google AI Studio (Banana Pro): {endpoint}")
+            # Google Imagen payload formato
+            imagen_payload = {
+                "instances": [
+                    {
+                        "prompt": prompt,
+                        "image": {
+                            "bytesBase64Encoded": customer_image_data
+                        },
+                        "mask": None
+                    }
+                ],
+                "parameters": {
+                    "sampleCount": 1,
+                    "aspectRatio": "1:1",
+                    "safetyFilterLevel": "block_some",
+                    "personGeneration": "allow_all"
+                }
+            }
+            
+            logger.info(f"   Payload preparato per Google Imagen")
             
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
                     endpoint,
                     params={"key": self.api_key},
-                    json={
-                        "contents": contents,
-                        "generationConfig": {
-                            "temperature": 0.7,
-                            "topK": 40,
-                            "topP": 0.95,
-                            "maxOutputTokens": 2048
-                        }
-                    }
+                    headers={
+                        "Content-Type": "application/json"
+                    },
+                    json=imagen_payload
                 )
                 
                 response.raise_for_status()
                 result = response.json()
-                logger.info(f"   Risultato Google AI Studio: {json.dumps(result, indent=2)}")
+                logger.info(f"   Risultato Google Imagen: {json.dumps(result, indent=2)}")
                 
-                # Google AI Studio restituisce il risultato nel formato Gemini API
-                if "candidates" in result and len(result["candidates"]) > 0:
-                    candidate = result["candidates"][0]
-                    if "content" in candidate and "parts" in candidate["content"]:
-                        # Cerca dati immagine nella risposta
-                        for part in candidate["content"]["parts"]:
-                            if "inline_data" in part:
-                                image_data = part["inline_data"]["data"]
-                                # Salva l'immagine generata su Supabase Storage
-                                supabase_image_url = await self._save_to_supabase_storage(image_data)
-                                return {
-                                    "image_url": supabase_image_url,
-                                    "status": "completed",
-                                    "ai_service": "banana_pro"
-                                }
-                
-                # Se non c'è immagine nella risposta, usa un placeholder
-                logger.warning("Banana Pro non ha restituito immagine, usando placeholder")
-                return {
-                    "image_url": "https://via.placeholder.com/1024x1024?text=AI+Generated+Image",
-                    "status": "completed",
-                    "ai_service": "banana_pro"
-                }
+                # Google Imagen restituisce le immagini generate in base64
+                if "predictions" in result and len(result["predictions"]) > 0:
+                    # Estrai l'immagine generata (in base64)
+                    prediction = result["predictions"][0]
+                    if "bytesBase64Encoded" in prediction:
+                        image_data = prediction["bytesBase64Encoded"]
+                    elif "image" in prediction:
+                        image_data = prediction["image"]
+                    else:
+                        raise ValueError(f"Formato risposta Google Imagen non riconosciuto: {prediction}")
+                    
+                    # Salva l'immagine su Supabase Storage
+                    supabase_image_url = await self._save_to_supabase_storage(image_data)
+                    return {
+                        "image_url": supabase_image_url,
+                        "status": "completed",
+                        "ai_service": "banana_pro"
+                    }
+                else:
+                    raise ValueError(f"Risposta Google Imagen non valida: {result}")
                     
         except httpx.HTTPError as e:
             import traceback
@@ -181,7 +170,7 @@ class BananaProService:
         Salva l'immagine su Supabase Storage
         
         Args:
-            image_data: Dati immagine in base64 da Google AI Studio
+            image_data: Dati immagine in base64 da Google Imagen API OPPURE URL
             
         Returns:
             URL pubblico dell'immagine su Supabase Storage
@@ -194,14 +183,32 @@ class BananaProService:
             # Usa admin client per upload Storage (bypassa RLS)
             supabase_admin = get_supabase_admin()
             
-            # Google AI Studio restituisce sempre base64
-            logger.info(f"📥 Decodifica immagine base64 da Google AI Studio")
-            try:
-                # Decodifica base64
-                image_bytes = base64.b64decode(image_data)
-                logger.info(f"✅ Immagine decodificata: {len(image_bytes)} bytes")
-            except Exception as e:
-                raise ValueError(f"Errore decodifica base64: {e}")
+            # Determina se è un URL o base64
+            if image_data.startswith("http://") or image_data.startswith("https://"):
+                # È un URL - scarica l'immagine
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    logger.info(f"📥 Download immagine da banana.dev: {image_data}")
+                    response = await client.get(image_data)
+                    response.raise_for_status()
+                    image_bytes = response.content
+                    
+                    if not image_bytes or len(image_bytes) == 0:
+                        raise ValueError("Immagine scaricata vuota")
+                    
+                    logger.info(f"✅ Immagine scaricata: {len(image_bytes)} bytes")
+            elif image_data.startswith("data:image") or len(image_data) > 100:
+                # Probabilmente è base64
+                logger.info(f"📥 Decodifica immagine base64 da banana.dev")
+                try:
+                    # Rimuovi il prefisso data:image se presente
+                    if "," in image_data:
+                        image_data = image_data.split(",")[1]
+                    image_bytes = base64.b64decode(image_data)
+                    logger.info(f"✅ Immagine decodificata: {len(image_bytes)} bytes")
+                except Exception as e:
+                    raise ValueError(f"Errore decodifica base64: {e}")
+            else:
+                raise ValueError(f"Formato immagine non riconosciuto: {image_data[:50]}...")
             
             # Genera nome file univoco
             file_name = f"generated/{uuid4()}.jpg"
