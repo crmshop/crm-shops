@@ -1,14 +1,24 @@
 """
 Servizio per integrazione Banana Pro API
+Usa la libreria google.generativeai per generare immagini con Gemini 3 Pro Image Preview
 """
-import httpx
 import logging
 from typing import Optional, Dict, Any
 from backend.config import settings
 import base64
-import json
+import asyncio
+import httpx
+
+try:
+    import google.generativeai as genai
+    GENAI_AVAILABLE = True
+except ImportError:
+    GENAI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+if not GENAI_AVAILABLE:
+    logger.warning("google.generativeai non disponibile. Installa con: pip install google-generativeai")
 
 
 class BananaProService:
@@ -16,9 +26,13 @@ class BananaProService:
     
     def __init__(self):
         self.api_key = settings.BANANA_PRO_API_KEY
-        # Usa Google Gemini API con modello Nano Banana Pro per generazione immagini
-        # Modello: gemini-3-pro-image-preview (richiede fatturazione attiva)
-        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        if not GENAI_AVAILABLE:
+            raise ImportError("google.generativeai non disponibile. Installa con: pip install google-generativeai")
+        
+        # Configura Google Generative AI
+        genai.configure(api_key=self.api_key)
+        self.model = genai.GenerativeModel('models/gemini-3-pro-image-preview')
+        
         if not self.api_key:
             logger.warning("BANANA_PRO_API_KEY non configurata")
             logger.warning("   Ottieni la API key da Google AI Studio: https://aistudio.google.com/")
@@ -67,13 +81,14 @@ class BananaProService:
             logger.info(f"   Prodotto: {product_image_url_clean}")
             
             # Scarica le immagini per includerle nella richiesta
+            import httpx
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Scarica foto cliente
                 try:
                     customer_response = await client.get(customer_photo_url_clean)
                     customer_response.raise_for_status()
-                    customer_image_data = base64.b64encode(customer_response.content).decode('utf-8')
-                    logger.info(f"✅ Foto cliente scaricata: {len(customer_response.content)} bytes")
+                    customer_image_bytes = customer_response.content
+                    logger.info(f"✅ Foto cliente scaricata: {len(customer_image_bytes)} bytes")
                 except Exception as e:
                     logger.error(f"❌ Errore download foto cliente: {e}")
                     raise Exception(f"Impossibile scaricare foto cliente: {str(e)}")
@@ -82,123 +97,80 @@ class BananaProService:
                 try:
                     product_response = await client.get(product_image_url_clean)
                     product_response.raise_for_status()
-                    product_image_data = base64.b64encode(product_response.content).decode('utf-8')
-                    logger.info(f"✅ Immagine prodotto scaricata: {len(product_response.content)} bytes")
+                    product_image_bytes = product_response.content
+                    logger.info(f"✅ Immagine prodotto scaricata: {len(product_image_bytes)} bytes")
                 except Exception as e:
                     logger.error(f"❌ Errore download immagine prodotto: {e}")
                     raise Exception(f"Impossibile scaricare immagine prodotto: {str(e)}")
             
-            # Prepara contenuto per Gemini API (formato standard)
-            # Nano Banana Pro usa l'endpoint generateContent come Gemini
-            endpoint = f"{self.base_url}/models/{model}:generateContent"
-            logger.info(f"🚀 Chiamata API Google Gemini (Nano Banana Pro): {endpoint}")
+            # Costruisci prompt se non fornito
+            if not prompt:
+                prompt = self._build_prompt(scenario)
             
-            # Gemini 3 Pro Image Preview richiede un prompt esplicito per generare immagini
-            # Il formato è diverso: usa un prompt di testo che descrive cosa generare
-            contents = [
-                {
-                    "parts": [
-                        {
-                            "text": f"Generate an image: {prompt}\n\nCreate a realistic, high-quality image showing a person from the first photo wearing the clothing item shown in the second photo. The image should be professional photography style with proper lighting and composition."
-                        },
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": customer_image_data
-                            }
-                        },
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": product_image_data
-                            }
-                        }
-                    ]
-                }
-            ]
+            # Prepara prompt completo per generazione immagine
+            full_prompt = f"{prompt}\n\nCreate a realistic, high-quality image showing a person from the first photo wearing the clothing item shown in the second photo. The image should be professional photography style with proper lighting and composition."
             
-            logger.info(f"   Payload preparato per Gemini API")
+            logger.info(f"🚀 Generazione immagine con Gemini 3 Pro Image Preview")
+            logger.info(f"   Prompt: {full_prompt[:200]}...")
             
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                logger.info(f"   Invio richiesta a Gemini API...")
-                response = await client.post(
-                    endpoint,
-                    params={"key": self.api_key},
-                    headers={
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "contents": contents,
-                        "generationConfig": {
-                            "temperature": 0.7,
-                            "topK": 40,
-                            "topP": 0.95,
-                            "maxOutputTokens": 4096,
-                            "responseMimeType": "image/png"  # Richiedi immagine PNG come nell'esempio ufficiale
-                        }
-                    }
+            # Usa la libreria google.generativeai invece delle chiamate HTTP dirette
+            # La libreria gestisce correttamente response_mime_type="image/png"
+            def generate_image_sync():
+                """Funzione sincrona per generare immagine (la libreria non è async)"""
+                import PIL.Image
+                import io
+                
+                # Converti bytes in PIL Image
+                customer_image = PIL.Image.open(io.BytesIO(customer_image_bytes))
+                product_image = PIL.Image.open(io.BytesIO(product_image_bytes))
+                
+                # Genera immagine usando la libreria
+                response = self.model.generate_content(
+                    [
+                        full_prompt,
+                        customer_image,
+                        product_image
+                    ],
+                    generation_config=genai.types.GenerationConfig(
+                        response_mime_type="image/png"
+                    )
                 )
                 
-                logger.info(f"   Status code: {response.status_code}")
-                logger.info(f"   Response headers: {dict(response.headers)}")
-                
-                response.raise_for_status()
-                result = response.json()
-                logger.info(f"   ✅ Risposta ricevuta da Gemini API")
-                logger.info(f"   Risultato Gemini API: {json.dumps(result, indent=2)}")
-                
-                # Gemini API restituisce il risultato nel formato standard
-                logger.info(f"   Analisi risposta Gemini API...")
-                if "candidates" in result:
-                    logger.info(f"   Trovati {len(result['candidates'])} candidates")
-                    if len(result["candidates"]) > 0:
-                        candidate = result["candidates"][0]
-                        logger.info(f"   Candidate keys: {list(candidate.keys())}")
-                        if "content" in candidate:
-                            logger.info(f"   Content keys: {list(candidate['content'].keys())}")
-                            if "parts" in candidate["content"]:
-                                logger.info(f"   Trovati {len(candidate['content']['parts'])} parts")
-                                # Cerca dati immagine nella risposta
-                                for idx, part in enumerate(candidate["content"]["parts"]):
-                                    logger.info(f"   Part {idx} keys: {list(part.keys())}")
-                                    if "inline_data" in part:
-                                        logger.info(f"   ✅ Trovata immagine in part {idx}")
-                                        image_data = part["inline_data"]["data"]
-                                        logger.info(f"   Dimensione dati immagine: {len(image_data)} caratteri")
-                                        # Salva l'immagine generata su Supabase Storage
-                                        logger.info(f"   Salvataggio immagine su Supabase Storage...")
-                                        supabase_image_url = await self._save_to_supabase_storage(image_data)
-                                        logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
-                                        return {
-                                            "image_url": supabase_image_url,
-                                            "status": "completed",
-                                            "ai_service": "banana_pro"
-                                        }
-                                    elif "text" in part:
-                                        logger.info(f"   Part {idx} contiene testo: {part['text'][:200]}...")
-                
-                # Se non c'è immagine nella risposta, mostra cosa contiene
-                logger.error("⚠️  Gemini API non ha restituito immagine nella risposta")
-                logger.error(f"   Struttura completa risposta: {json.dumps(result, indent=2)}")
-                
-                # Estrai eventuale testo dalla risposta per debug
-                text_parts = []
-                if "candidates" in result and len(result["candidates"]) > 0:
-                    candidate = result["candidates"][0]
-                    if "content" in candidate and "parts" in candidate["content"]:
-                        for part in candidate["content"]["parts"]:
-                            if "text" in part:
-                                text_parts.append(part["text"])
-                
-                if text_parts:
-                    logger.error(f"   Testo restituito dal modello: {''.join(text_parts)}")
-                
-                raise ValueError(
-                    f"Gemini API non ha restituito un'immagine. "
-                    f"Il modello 'gemini-3-pro-image-preview' potrebbe non supportare la generazione di immagini "
-                    f"tramite l'API REST standard, oppure potrebbe essere necessario usare Vertex AI invece di Google AI Studio API. "
-                    f"Risposta ricevuta: {json.dumps(result, indent=2)[:500]}..."
-                )
+                return response
+            
+            # Esegui in thread separato per non bloccare l'event loop
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, generate_image_sync)
+            
+            logger.info(f"   ✅ Risposta ricevuta da Gemini API")
+            
+            # Estrai immagine dalla risposta (formato della libreria)
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'inline_data') and part.inline_data:
+                            image_data = part.inline_data.data
+                            logger.info(f"   ✅ Trovata immagine generata: {len(image_data)} caratteri base64")
+                            
+                            # Salva l'immagine su Supabase Storage
+                            logger.info(f"   Salvataggio immagine su Supabase Storage...")
+                            supabase_image_url = await self._save_to_supabase_storage(image_data)
+                            logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                            
+                            return {
+                                "image_url": supabase_image_url,
+                                "status": "completed",
+                                "ai_service": "banana_pro"
+                            }
+            
+            # Se non c'è immagine nella risposta
+            logger.error("⚠️  Gemini API non ha restituito immagine nella risposta")
+            raise ValueError(
+                "Gemini API non ha restituito un'immagine. "
+                "Verifica che il modello 'gemini-3-pro-image-preview' sia disponibile "
+                "e che la fatturazione sia attiva sul tuo account Google Cloud."
+            )
                     
         except httpx.HTTPError as e:
             import traceback
