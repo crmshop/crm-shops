@@ -23,7 +23,7 @@ class AIService:
         product_image_url: str,
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
-        ai_model: Optional[str] = "gemini"  # Default: Gemini
+        ai_model: Optional[str] = "banana_pro"  # Default: Banana Pro (Gemini non può generare immagini)
     ) -> Dict[str, Any]:
         """
         Genera un'immagine di un cliente che indossa un prodotto usando l'AI.
