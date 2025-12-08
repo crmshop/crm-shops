@@ -86,13 +86,17 @@ class AIService:
             }
             
         except Exception as e:
-            logger.error(f"Errore generazione immagine AI: {e}")
-            # Restituisci placeholder in caso di errore
+            import traceback
+            error_trace = traceback.format_exc()
+            logger.error(f"❌ Errore generazione immagine AI: {e}")
+            logger.error(f"   Traceback completo:\n{error_trace}")
+            # Restituisci placeholder in caso di errore, ma includi dettagli dell'errore
             return {
                 "image_url": "https://via.placeholder.com/1024x1024?text=Error+Generating+Image",
                 "status": "error",
                 "ai_service": ai_model,
-                "error": str(e)
+                "error": str(e),
+                "error_details": error_trace  # Includi traceback per debug
             }
 
     def build_prompt(

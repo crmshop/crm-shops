@@ -63,6 +63,9 @@ class BananaProService:
             }
             
             # Chiamata API Banana Pro
+            logger.info(f"🚀 Chiamata API Banana Pro: {self.base_url}/v1/generate")
+            logger.info(f"   Payload: {json.dumps(payload, indent=2)}")
+            
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
                     f"{self.base_url}/v1/generate",
@@ -73,23 +76,34 @@ class BananaProService:
                     json=payload
                 )
                 
+                logger.info(f"   Status code: {response.status_code}")
+                logger.info(f"   Response headers: {dict(response.headers)}")
+                
                 response.raise_for_status()
                 result = response.json()
+                logger.info(f"   Risultato Banana Pro: {json.dumps(result, indent=2)}")
                 
                 # Banana Pro restituisce un job_id, poi bisogna fare polling
                 if "job_id" in result:
                     # Polling per ottenere il risultato
-                    image_url = await self._poll_job_status(result["job_id"])
+                    banana_image_url = await self._poll_job_status(result["job_id"])
+                    # Salva l'immagine su Supabase Storage
+                    supabase_image_url = await self._save_to_supabase_storage(banana_image_url)
                     return {
-                        "image_url": image_url,
+                        "image_url": supabase_image_url,
+                        "banana_pro_url": banana_image_url,  # Mantieni anche l'URL originale
                         "job_id": result["job_id"],
                         "status": "completed",
                         "ai_service": "banana_pro"
                     }
                 elif "image_url" in result:
                     # Risultato immediato
+                    banana_image_url = result["image_url"]
+                    # Salva l'immagine su Supabase Storage
+                    supabase_image_url = await self._save_to_supabase_storage(banana_image_url)
                     return {
-                        "image_url": result["image_url"],
+                        "image_url": supabase_image_url,
+                        "banana_pro_url": banana_image_url,  # Mantieni anche l'URL originale
                         "status": "completed",
                         "ai_service": "banana_pro"
                     }
@@ -97,10 +111,19 @@ class BananaProService:
                     raise ValueError(f"Risposta Banana Pro non valida: {result}")
                     
         except httpx.HTTPError as e:
-            logger.error(f"Errore HTTP Banana Pro: {e}")
-            raise Exception(f"Errore comunicazione Banana Pro: {str(e)}")
+            import traceback
+            error_trace = traceback.format_exc()
+            logger.error(f"❌ Errore HTTP Banana Pro: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"   Response status: {e.response.status_code}")
+                logger.error(f"   Response body: {e.response.text}")
+            logger.error(f"   Traceback completo:\n{error_trace}")
+            raise Exception(f"Errore comunicazione Banana Pro: {str(e)}") from e
         except Exception as e:
-            logger.error(f"Errore generazione Banana Pro: {e}")
+            import traceback
+            error_trace = traceback.format_exc()
+            logger.error(f"❌ Errore generazione Banana Pro: {e}")
+            logger.error(f"   Traceback completo:\n{error_trace}")
             raise
     
     async def _poll_job_status(self, job_id: str, max_attempts: int = 30) -> str:
@@ -132,6 +155,78 @@ class BananaProService:
                     await asyncio.sleep(2)
             
             raise TimeoutError("Timeout polling job Banana Pro")
+    
+    async def _save_to_supabase_storage(self, image_url: str) -> str:
+        """
+        Scarica l'immagine da Banana Pro e la salva su Supabase Storage
+        
+        Args:
+            image_url: URL dell'immagine generata da Banana Pro
+            
+        Returns:
+            URL pubblico dell'immagine su Supabase Storage
+        """
+        try:
+            from backend.database import get_supabase_admin
+            from uuid import uuid4
+            
+            # Usa admin client per upload Storage (bypassa RLS)
+            supabase_admin = get_supabase_admin()
+            
+            # Scarica l'immagine da Banana Pro
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                logger.info(f"📥 Download immagine da Banana Pro: {image_url}")
+                response = await client.get(image_url)
+                response.raise_for_status()
+                image_bytes = response.content
+                
+                # Verifica che sia un'immagine valida
+                if not image_bytes or len(image_bytes) == 0:
+                    raise ValueError("Immagine scaricata vuota")
+                
+                logger.info(f"✅ Immagine scaricata: {len(image_bytes)} bytes")
+            
+            # Genera nome file univoco
+            file_name = f"generated/{uuid4()}.jpg"
+            
+            # Carica su Supabase Storage
+            bucket_name = "generated-images"
+            logger.info(f"📤 Upload su Supabase Storage: {bucket_name}/{file_name}")
+            
+            # Prova a caricare, se esiste già genera un nuovo nome
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    supabase_admin.storage.from_(bucket_name).upload(
+                        file_name,
+                        image_bytes,
+                        file_options={"content-type": "image/jpeg", "upsert": "true"}
+                    )
+                    break
+                except Exception as e:
+                    if "duplicate" in str(e).lower() or "already exists" in str(e).lower():
+                        # Genera nuovo nome se esiste già
+                        file_name = f"generated/{uuid4()}.jpg"
+                        if attempt == max_retries - 1:
+                            raise
+                    else:
+                        raise
+            
+            # Ottieni URL pubblico
+            public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
+            logger.info(f"✅ Immagine salvata su Supabase Storage: {public_url}")
+            
+            return public_url
+            
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            logger.error(f"❌ Errore salvataggio immagine Banana Pro su Supabase Storage: {e}")
+            logger.error(f"   Traceback completo:\n{error_trace}")
+            # Fallback: restituisci l'URL originale di Banana Pro
+            logger.warning(f"⚠️  Uso URL Banana Pro originale come fallback: {image_url}")
+            # Rilancia l'eccezione per essere gestita dal chiamante
+            raise Exception(f"Errore salvataggio su Supabase Storage: {str(e)}") from e
     
     def _build_prompt(self, scenario: Optional[str] = None) -> str:
         """Costruisci prompt base per generazione immagine"""

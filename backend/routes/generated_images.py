@@ -282,8 +282,14 @@ async def generate_outfit_image(
             "image_url": generated_image_url,
             "prompt_used": prompt,
             "scenario": request.scenario,
-            "ai_service": "gemini"
+            "ai_service": ai_result.get("ai_service", "banana_pro")  # Usa il servizio effettivamente usato
         }
+        
+        # Se c'è un errore nel risultato, loggalo
+        if ai_result.get("status") == "error":
+            logger.error(f"❌ Errore durante generazione immagine: {ai_result.get('error', 'Unknown error')}")
+            if ai_result.get("error_details"):
+                logger.error(f"   Dettagli errore:\n{ai_result.get('error_details')}")
         
         result = supabase.table("generated_images").insert(image_data).execute()
         
