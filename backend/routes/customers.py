@@ -9,6 +9,7 @@ from backend.database import get_supabase
 from backend.middleware.auth import get_current_shop_owner
 import logging
 import os
+import httpx
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/customers", tags=["clienti"])
@@ -325,28 +326,54 @@ async def upload_customer_photo(
             )
             logger.info(f"✅ Upload Storage riuscito: {storage_response}")
         except Exception as storage_error:
-            logger.error(f"❌ Errore durante upload Storage: {storage_error}")
+            logger.error(f"❌ Errore durante upload Storage con client Python: {storage_error}")
             logger.error(f"   Tipo errore: {type(storage_error)}")
             logger.error(f"   Dettagli: {str(storage_error)}")
-            # Verifica se è un errore RLS
+            
+            # Verifica se è un errore RLS - prova con API REST diretta
             if "row-level security" in str(storage_error).lower() or "unauthorized" in str(storage_error).lower():
-                logger.error("⚠️ Errore RLS su Storage - verifica che SUPABASE_SERVICE_KEY sia corretta")
-                error_detail = (
-                    "Errore RLS su Storage. Questo significa che SUPABASE_SERVICE_KEY non è configurata correttamente.\n\n"
-                    "🔧 COME RISOLVERE:\n"
-                    "1. Vai su Supabase Dashboard > Settings > API\n"
-                    "2. Copia la 'service_role' key (NON la 'anon' key!)\n"
-                    "3. Vai su Render Dashboard > Il tuo servizio backend > Environment\n"
-                    "4. Aggiungi/modifica la variabile: SUPABASE_SERVICE_KEY\n"
-                    "5. Incolla la service_role key come valore\n"
-                    "6. Salva e riavvia il servizio\n\n"
-                    "⚠️ IMPORTANTE: La service_role key è diversa dalla anon key e bypassa le RLS policies."
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=error_detail
-                )
-            raise
+                logger.warning("⚠️ Errore RLS su Storage - provo con API REST diretta")
+                try:
+                    # Prova upload diretto con API REST usando service key
+                    from backend.config import settings
+                    
+                    storage_url = f"{settings.SUPABASE_URL}/storage/v1/object/{bucket_name}/{file_name}"
+                    headers = {
+                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
+                        "Content-Type": file.content_type or "image/jpeg",
+                        "x-upsert": "true"  # Permette sovrascrittura
+                    }
+                    
+                    logger.info(f"🔄 Tentativo upload diretto: {storage_url}")
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(
+                            storage_url,
+                            content=file_content,
+                            headers=headers,
+                            timeout=30.0
+                        )
+                        
+                    if response.status_code == 200:
+                        logger.info(f"✅ Upload diretto riuscito: {response.status_code}")
+                    else:
+                        logger.error(f"❌ Upload diretto fallito: {response.status_code} - {response.text}")
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Errore upload Storage (status {response.status_code}): {response.text[:200]}"
+                        )
+                except Exception as direct_error:
+                    logger.error(f"❌ Errore anche con upload diretto: {direct_error}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=(
+                            "Errore RLS su Storage. Verifica:\n"
+                            "1. SUPABASE_SERVICE_KEY è configurata su Render (non SUPABASE_KEY!)\n"
+                            "2. La service_role key è corretta (da Supabase Dashboard > Settings > API)\n"
+                            "3. Le Storage policies su Supabase permettono upload con service role"
+                        )
+                    )
+            else:
+                raise
         
         # Ottieni URL pubblico
         public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
