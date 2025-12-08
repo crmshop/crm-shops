@@ -9,7 +9,6 @@ from backend.database import get_supabase
 from backend.middleware.auth import get_current_shop_owner
 import logging
 import os
-import httpx
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/customers", tags=["clienti"])
@@ -317,63 +316,57 @@ async def upload_customer_photo(
         # Carica su Supabase Storage usando admin client (bypassa RLS)
         bucket_name = "customer-photos"
         
-        logger.info(f"📤 Tentativo upload Storage: bucket={bucket_name}, file={file_name}")
+        # Verifica che il bucket esista (opzionale, ma utile per debug)
         try:
+            buckets = supabase_admin.storage.list_buckets()
+            bucket_exists = any(b.name == bucket_name for b in buckets)
+            logger.info(f"🔍 Bucket '{bucket_name}' esiste: {bucket_exists}")
+            if not bucket_exists:
+                logger.warning(f"⚠️ Bucket '{bucket_name}' non trovato. Verifica su Supabase Dashboard > Storage")
+        except Exception as bucket_check_error:
+            logger.warning(f"⚠️ Impossibile verificare bucket: {bucket_check_error}")
+        
+        logger.info(f"📤 Tentativo upload Storage: bucket={bucket_name}, file={file_name}")
+        logger.info(f"   Service key presente: {bool(settings.SUPABASE_SERVICE_KEY)}")
+        logger.info(f"   Service key lunghezza: {len(settings.SUPABASE_SERVICE_KEY) if settings.SUPABASE_SERVICE_KEY else 0}")
+        
+        try:
+            # Prova upload con upsert per sovrascrivere file esistenti
             storage_response = supabase_admin.storage.from_(bucket_name).upload(
                 file_name,
                 file_content,
-                file_options={"content-type": file.content_type or "image/jpeg"}
+                file_options={
+                    "content-type": file.content_type or "image/jpeg",
+                    "upsert": "true"  # Permette sovrascrittura
+                }
             )
             logger.info(f"✅ Upload Storage riuscito: {storage_response}")
         except Exception as storage_error:
-            logger.error(f"❌ Errore durante upload Storage con client Python: {storage_error}")
+            error_str = str(storage_error)
+            logger.error(f"❌ Errore durante upload Storage: {storage_error}")
             logger.error(f"   Tipo errore: {type(storage_error)}")
-            logger.error(f"   Dettagli: {str(storage_error)}")
+            logger.error(f"   Dettagli: {error_str}")
             
-            # Verifica se è un errore RLS - prova con API REST diretta
-            if "row-level security" in str(storage_error).lower() or "unauthorized" in str(storage_error).lower():
-                logger.warning("⚠️ Errore RLS su Storage - provo con API REST diretta")
-                try:
-                    # Prova upload diretto con API REST usando service key
-                    from backend.config import settings
-                    
-                    storage_url = f"{settings.SUPABASE_URL}/storage/v1/object/{bucket_name}/{file_name}"
-                    headers = {
-                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
-                        "Content-Type": file.content_type or "image/jpeg",
-                        "x-upsert": "true"  # Permette sovrascrittura
-                    }
-                    
-                    logger.info(f"🔄 Tentativo upload diretto: {storage_url}")
-                    async with httpx.AsyncClient() as client:
-                        response = await client.post(
-                            storage_url,
-                            content=file_content,
-                            headers=headers,
-                            timeout=30.0
-                        )
-                        
-                    if response.status_code == 200:
-                        logger.info(f"✅ Upload diretto riuscito: {response.status_code}")
-                    else:
-                        logger.error(f"❌ Upload diretto fallito: {response.status_code} - {response.text}")
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Errore upload Storage (status {response.status_code}): {response.text[:200]}"
-                        )
-                except Exception as direct_error:
-                    logger.error(f"❌ Errore anche con upload diretto: {direct_error}")
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=(
-                            "Errore RLS su Storage. Verifica:\n"
-                            "1. SUPABASE_SERVICE_KEY è configurata su Render (non SUPABASE_KEY!)\n"
-                            "2. La service_role key è corretta (da Supabase Dashboard > Settings > API)\n"
-                            "3. Le Storage policies su Supabase permettono upload con service role"
-                        )
+            # Verifica se è un errore RLS o di autorizzazione
+            if any(keyword in error_str.lower() for keyword in ["row-level security", "unauthorized", "permission", "forbidden", "403", "401"]):
+                logger.error("⚠️ Errore RLS/Autorizzazione su Storage")
+                logger.error("   Possibili cause:")
+                logger.error("   1. SUPABASE_SERVICE_KEY non configurata su Render")
+                logger.error("   2. SUPABASE_SERVICE_KEY è la anon key invece della service_role key")
+                logger.error("   3. Storage policies su Supabase bloccano anche il service role")
+                logger.error("   4. Bucket 'customer-photos' non esiste o ha policies restrittive")
+                
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=(
+                        "Errore RLS su Storage. Verifica:\n"
+                        "1. SUPABASE_SERVICE_KEY è configurata su Render Dashboard > Environment\n"
+                        "2. È la service_role key (NON la anon key) da Supabase Dashboard > Settings > API\n"
+                        "3. Il bucket 'customer-photos' esiste su Supabase Dashboard > Storage\n"
+                        "4. Le Storage policies permettono upload con service role"
                     )
-            else:
-                raise
+                )
+            raise
         
         # Ottieni URL pubblico
         public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
