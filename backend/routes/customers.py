@@ -311,7 +311,15 @@ async def upload_customer_photo(
         
         # Leggi il file
         file_content = await file.read()
-        file_name = f"{customer_id}/{file.filename}"
+        
+        # Genera nome file univoco per evitare conflitti
+        import uuid
+        from datetime import datetime
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.{file_extension}"
+        file_name = f"{customer_id}/{unique_filename}"
+        
+        logger.info(f"📁 Nome file generato: {file_name}")
         
         # Carica su Supabase Storage usando admin client (bypassa RLS)
         bucket_name = "customer-photos"
@@ -331,13 +339,13 @@ async def upload_customer_photo(
         logger.info(f"   Service key lunghezza: {len(settings.SUPABASE_SERVICE_KEY) if settings.SUPABASE_SERVICE_KEY else 0}")
         
         try:
-            # Prova upload con upsert per sovrascrivere file esistenti
+            # Prova upload (con nome file univoco non dovrebbe esserci duplicato)
             storage_response = supabase_admin.storage.from_(bucket_name).upload(
                 file_name,
                 file_content,
                 file_options={
                     "content-type": file.content_type or "image/jpeg",
-                    "upsert": "true"  # Permette sovrascrittura
+                    "upsert": "true"  # Permette sovrascrittura se il file esiste già
                 }
             )
             logger.info(f"✅ Upload Storage riuscito: {storage_response}")
@@ -347,8 +355,46 @@ async def upload_customer_photo(
             logger.error(f"   Tipo errore: {type(storage_error)}")
             logger.error(f"   Dettagli: {error_str}")
             
+            # Gestisci errore "Duplicate" - file già esistente
+            if "duplicate" in error_str.lower() or "already exists" in error_str.lower():
+                logger.warning(f"⚠️ File già esistente: {file_name}")
+                logger.info("🔄 Tentativo eliminazione file esistente e nuovo upload...")
+                try:
+                    # Prova a eliminare il file esistente
+                    supabase_admin.storage.from_(bucket_name).remove([file_name])
+                    logger.info(f"✅ File esistente eliminato: {file_name}")
+                    
+                    # Riprova upload
+                    storage_response = supabase_admin.storage.from_(bucket_name).upload(
+                        file_name,
+                        file_content,
+                        file_options={
+                            "content-type": file.content_type or "image/jpeg"
+                        }
+                    )
+                    logger.info(f"✅ Upload Storage riuscito dopo eliminazione: {storage_response}")
+                except Exception as retry_error:
+                    logger.error(f"❌ Errore durante retry upload: {retry_error}")
+                    # Se anche il retry fallisce, genera un nuovo nome file univoco
+                    import uuid
+                    from datetime import datetime
+                    file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+                    new_unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.{file_extension}"
+                    file_name = f"{customer_id}/{new_unique_filename}"
+                    logger.info(f"🔄 Nuovo nome file generato: {file_name}")
+                    
+                    # Ultimo tentativo con nuovo nome
+                    storage_response = supabase_admin.storage.from_(bucket_name).upload(
+                        file_name,
+                        file_content,
+                        file_options={
+                            "content-type": file.content_type or "image/jpeg"
+                        }
+                    )
+                    logger.info(f"✅ Upload Storage riuscito con nuovo nome: {storage_response}")
+            
             # Verifica se è un errore RLS o di autorizzazione
-            if any(keyword in error_str.lower() for keyword in ["row-level security", "unauthorized", "permission", "forbidden", "403", "401"]):
+            elif any(keyword in error_str.lower() for keyword in ["row-level security", "unauthorized", "permission", "forbidden", "403", "401"]):
                 logger.error("⚠️ Errore RLS/Autorizzazione su Storage")
                 logger.error("   Possibili cause:")
                 logger.error("   1. SUPABASE_SERVICE_KEY non configurata su Render")
@@ -366,7 +412,8 @@ async def upload_customer_photo(
                         "4. Le Storage policies permettono upload con service role"
                     )
                 )
-            raise
+            else:
+                raise
         
         # Ottieni URL pubblico
         public_url = supabase_admin.storage.from_(bucket_name).get_public_url(file_name)
