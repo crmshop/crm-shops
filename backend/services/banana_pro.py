@@ -29,7 +29,7 @@ class BananaProService:
         product_image_url: str,
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
-        model: str = "gemini-3-pro-image-preview"  # Modello Nano Banana Pro per generazione immagini
+        model: str = "gemini-3-pro-image-preview"  # Modello Gemini 3 Pro Image Preview per generazione immagini
     ) -> Dict[str, Any]:
         """
         Genera un'immagine combinando foto cliente e prodotto
@@ -93,12 +93,13 @@ class BananaProService:
             endpoint = f"{self.base_url}/models/{model}:generateContent"
             logger.info(f"🚀 Chiamata API Google Gemini (Nano Banana Pro): {endpoint}")
             
-            # Gemini API payload formato (multimodale con immagini)
+            # Gemini 3 Pro Image Preview richiede un prompt esplicito per generare immagini
+            # Il formato è diverso: usa un prompt di testo che descrive cosa generare
             contents = [
                 {
                     "parts": [
                         {
-                            "text": f"{prompt}\n\nGenerate a realistic image of the person from the first image wearing the clothing item from the second image. High quality, professional photography style."
+                            "text": f"Generate an image: {prompt}\n\nCreate a realistic, high-quality image showing a person from the first photo wearing the clothing item shown in the second photo. The image should be professional photography style with proper lighting and composition."
                         },
                         {
                             "inline_data": {
@@ -132,7 +133,8 @@ class BananaProService:
                             "temperature": 0.7,
                             "topK": 40,
                             "topP": 0.95,
-                            "maxOutputTokens": 2048
+                            "maxOutputTokens": 4096,
+                            "responseMimeType": "image/jpeg"  # Richiedi esplicitamente immagine JPEG
                         }
                     }
                 )
