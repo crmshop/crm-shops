@@ -56,27 +56,6 @@ async def startup_event():
             logger.error(f"❌ Errore inizializzazione Supabase: {e}")
     else:
         logger.warning("⚠️ Credenziali Supabase non configurate")
-    
-    # Verifica configurazione SUPABASE_SERVICE_KEY (necessaria per upload Storage)
-    if not settings.SUPABASE_SERVICE_KEY:
-        logger.error("❌ SUPABASE_SERVICE_KEY non configurata!")
-        logger.error("   Questa variabile è necessaria per upload su Storage (bypassa RLS)")
-        logger.error("   Configurala su Render Dashboard > Environment Variables")
-        logger.error("   Trovala in: Supabase Dashboard > Settings > API > service_role key")
-    else:
-        logger.info(f"✅ SUPABASE_SERVICE_KEY configurata (lunghezza: {len(settings.SUPABASE_SERVICE_KEY)})")
-        # Verifica che non sia uguale alla anon key
-        if settings.SUPABASE_SERVICE_KEY == settings.SUPABASE_KEY:
-            logger.warning("⚠️ ATTENZIONE: SUPABASE_SERVICE_KEY è uguale a SUPABASE_KEY!")
-            logger.warning("   Questo è probabilmente un errore. Usa la service_role key, non la anon key!")
-        
-        # Prova a inizializzare il client admin
-        try:
-            from backend.database import init_supabase_admin
-            init_supabase_admin()
-            logger.info("✅ Client Supabase Admin inizializzato correttamente")
-        except Exception as e:
-            logger.error(f"❌ Errore inizializzazione Supabase Admin: {e}")
 
 # Importa route
 from backend.routes import auth, products, outfits, shops, customer_photos, generated_images, customers, shop_stats
@@ -115,39 +94,6 @@ async def health_check():
         "supabase": supabase_status,
         "environment": settings.ENVIRONMENT
     }
-
-
-@app.get("/diagnostics")
-async def diagnostics():
-    """Endpoint di diagnostica per verificare la configurazione"""
-    from backend.database import get_supabase_admin
-    
-    diagnostics_info = {
-        "environment": settings.ENVIRONMENT,
-        "supabase": {
-            "url_configured": bool(settings.SUPABASE_URL),
-            "url_length": len(settings.SUPABASE_URL) if settings.SUPABASE_URL else 0,
-            "anon_key_configured": bool(settings.SUPABASE_KEY),
-            "anon_key_length": len(settings.SUPABASE_KEY) if settings.SUPABASE_KEY else 0,
-            "service_key_configured": bool(settings.SUPABASE_SERVICE_KEY),
-            "service_key_length": len(settings.SUPABASE_SERVICE_KEY) if settings.SUPABASE_SERVICE_KEY else 0,
-            "service_key_same_as_anon": settings.SUPABASE_SERVICE_KEY == settings.SUPABASE_KEY if (settings.SUPABASE_SERVICE_KEY and settings.SUPABASE_KEY) else False,
-        },
-        "admin_client": {
-            "initialized": False,
-            "error": None
-        }
-    }
-    
-    # Prova a inizializzare il client admin
-    try:
-        admin_client = get_supabase_admin()
-        diagnostics_info["admin_client"]["initialized"] = True
-    except Exception as e:
-        diagnostics_info["admin_client"]["error"] = str(e)
-        diagnostics_info["admin_client"]["initialized"] = False
-    
-    return diagnostics_info
 
 if __name__ == "__main__":
     import uvicorn
