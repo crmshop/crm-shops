@@ -57,17 +57,45 @@ class GeminiService:
             if not prompt:
                 prompt = self._build_prompt(scenario)
             
+            # Pulisci URL rimuovendo parametri di query e caratteri strani
+            def clean_url(url: str) -> str:
+                """Rimuove parametri di query e caratteri strani dall'URL"""
+                if not url:
+                    return url
+                # Rimuovi parametri di query (tutto dopo ?)
+                url = url.split('?')[0]
+                # Rimuovi eventuali spazi o caratteri di fine riga
+                url = url.strip()
+                return url
+            
+            customer_photo_url_clean = clean_url(customer_photo_url)
+            product_image_url_clean = clean_url(product_image_url)
+            
+            logger.info(f"📥 Download immagini:")
+            logger.info(f"   Foto cliente: {customer_photo_url_clean}")
+            logger.info(f"   Prodotto: {product_image_url_clean}")
+            
             # Scarica le immagini per includerle nella richiesta
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Scarica foto cliente
-                customer_response = await client.get(customer_photo_url)
-                customer_response.raise_for_status()
-                customer_image_data = base64.b64encode(customer_response.content).decode('utf-8')
+                try:
+                    customer_response = await client.get(customer_photo_url_clean)
+                    customer_response.raise_for_status()
+                    customer_image_data = base64.b64encode(customer_response.content).decode('utf-8')
+                    logger.info(f"✅ Foto cliente scaricata: {len(customer_response.content)} bytes")
+                except Exception as e:
+                    logger.error(f"❌ Errore download foto cliente da {customer_photo_url_clean}: {e}")
+                    raise Exception(f"Impossibile scaricare foto cliente: {str(e)}")
                 
                 # Scarica immagine prodotto
-                product_response = await client.get(product_image_url)
-                product_response.raise_for_status()
-                product_image_data = base64.b64encode(product_response.content).decode('utf-8')
+                try:
+                    product_response = await client.get(product_image_url_clean)
+                    product_response.raise_for_status()
+                    product_image_data = base64.b64encode(product_response.content).decode('utf-8')
+                    logger.info(f"✅ Immagine prodotto scaricata: {len(product_response.content)} bytes")
+                except Exception as e:
+                    logger.error(f"❌ Errore download immagine prodotto da {product_image_url_clean}: {e}")
+                    raise Exception(f"Impossibile scaricare immagine prodotto: {str(e)}")
             
             # Prepara contenuto per Gemini (multimodale)
             contents = [
@@ -209,23 +237,47 @@ class GeminiService:
                 prompt = self._build_prompt(scenario)
                 prompt += f" The person should be wearing {len(product_image_urls)} item(s) from the product images."
             
+            # Pulisci URL rimuovendo parametri di query e caratteri strani
+            def clean_url(url: str) -> str:
+                """Rimuove parametri di query e caratteri strani dall'URL"""
+                if not url:
+                    return url
+                # Rimuovi parametri di query (tutto dopo ?)
+                url = url.split('?')[0]
+                # Rimuovi eventuali spazi o caratteri di fine riga
+                url = url.strip()
+                return url
+            
+            customer_photo_url_clean = clean_url(customer_photo_url)
+            logger.info(f"📥 Download immagini per outfit:")
+            logger.info(f"   Foto cliente: {customer_photo_url_clean}")
+            logger.info(f"   Prodotti: {len(product_image_urls)}")
+            
             # Scarica le immagini per includerle nella richiesta
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Scarica foto cliente
-                customer_response = await client.get(customer_photo_url)
-                customer_response.raise_for_status()
-                customer_image_data = base64.b64encode(customer_response.content).decode('utf-8')
+                try:
+                    customer_response = await client.get(customer_photo_url_clean)
+                    customer_response.raise_for_status()
+                    customer_image_data = base64.b64encode(customer_response.content).decode('utf-8')
+                    logger.info(f"✅ Foto cliente scaricata: {len(customer_response.content)} bytes")
+                except Exception as e:
+                    logger.error(f"❌ Errore download foto cliente da {customer_photo_url_clean}: {e}")
+                    raise Exception(f"Impossibile scaricare foto cliente: {str(e)}")
                 
                 # Scarica immagini prodotti
                 product_images_data = []
-                for product_url in product_image_urls:
+                for idx, product_url in enumerate(product_image_urls):
                     try:
-                        product_response = await client.get(product_url)
+                        product_url_clean = clean_url(product_url)
+                        logger.info(f"   Download prodotto {idx+1}/{len(product_image_urls)}: {product_url_clean}")
+                        product_response = await client.get(product_url_clean)
                         product_response.raise_for_status()
                         product_image_data = base64.b64encode(product_response.content).decode('utf-8')
                         product_images_data.append(product_image_data)
+                        logger.info(f"   ✅ Prodotto {idx+1} scaricato: {len(product_response.content)} bytes")
                     except Exception as e:
-                        logger.warning(f"Errore nel caricare immagine prodotto {product_url}: {e}")
+                        logger.warning(f"⚠️ Errore nel caricare immagine prodotto {product_url}: {e}")
                         continue
             
             if not product_images_data:
