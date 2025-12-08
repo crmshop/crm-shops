@@ -176,14 +176,27 @@ class BananaProService:
                                     elif "text" in part:
                                         logger.info(f"   Part {idx} contiene testo: {part['text'][:200]}...")
                 
-                # Se non c'è immagine nella risposta
-                logger.warning("⚠️  Gemini API non ha restituito immagine nella risposta")
-                logger.warning(f"   Struttura risposta: {json.dumps(result, indent=2)}")
+                # Se non c'è immagine nella risposta, mostra cosa contiene
+                logger.error("⚠️  Gemini API non ha restituito immagine nella risposta")
+                logger.error(f"   Struttura completa risposta: {json.dumps(result, indent=2)}")
+                
+                # Estrai eventuale testo dalla risposta per debug
+                text_parts = []
+                if "candidates" in result and len(result["candidates"]) > 0:
+                    candidate = result["candidates"][0]
+                    if "content" in candidate and "parts" in candidate["content"]:
+                        for part in candidate["content"]["parts"]:
+                            if "text" in part:
+                                text_parts.append(part["text"])
+                
+                if text_parts:
+                    logger.error(f"   Testo restituito dal modello: {''.join(text_parts)}")
+                
                 raise ValueError(
-                    "Gemini API non ha restituito un'immagine. "
-                    "Il modello potrebbe aver restituito solo testo invece di un'immagine. "
-                    "Verifica che il modello 'gemini-3-pro-image-preview' supporti la generazione di immagini "
-                    "e che la fatturazione sia attiva sul tuo account Google Cloud."
+                    f"Gemini API non ha restituito un'immagine. "
+                    f"Il modello 'gemini-3-pro-image-preview' potrebbe non supportare la generazione di immagini "
+                    f"tramite l'API REST standard, oppure potrebbe essere necessario usare Vertex AI invece di Google AI Studio API. "
+                    f"Risposta ricevuta: {json.dumps(result, indent=2)[:500]}..."
                 )
                     
         except httpx.HTTPError as e:
