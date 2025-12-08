@@ -249,14 +249,28 @@ async def generate_outfit_image(
             product_names = [p.get("name", "") for p in products]
             prompt = f"Create a realistic image of the person from the customer photo wearing the following items: {', '.join(product_names)}. High quality, professional photography style."
         
-        # Genera immagine usando Gemini con più prodotti
-        from backend.services.gemini import gemini_service
+        # Genera immagine usando AI service (Banana Pro per generazione immagini)
+        # NOTA: Gemini non può generare immagini, solo analizzarle
+        # Per ora usiamo solo il primo prodotto, Banana Pro non supporta multiple products
+        # TODO: Implementare supporto per multiple products con Banana Pro
         
-        ai_result = await gemini_service.generate_outfit_image(
+        from backend.services.ai_service import ai_service
+        
+        # Usa Banana Pro per generazione immagini (Gemini non supporta generazione)
+        # Per outfit con più prodotti, usa il primo prodotto per ora
+        first_product_url = product_image_urls[0] if product_image_urls else None
+        if not first_product_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Almeno un prodotto è richiesto per generare l'immagine"
+            )
+        
+        ai_result = await ai_service.generate_image_with_product(
             customer_photo_url=customer_photo_url,
-            product_image_urls=product_image_urls,
+            product_image_url=first_product_url,
             prompt=prompt,
-            scenario=request.scenario
+            scenario=request.scenario,
+            ai_model="banana_pro"  # Usa Banana Pro invece di Gemini
         )
         
         generated_image_url = ai_result.get("image_url", "")
