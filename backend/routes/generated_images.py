@@ -134,8 +134,9 @@ async def generate_image(
             )
         
         # Genera immagine usando servizio AI
-        # Determina quale modello usare (default: gemini)
-        ai_model = "gemini"  # Default, può essere migliorato con selezione utente
+        # NOTA: Gemini non può generare immagini, solo analizzarle
+        # Usa Banana Pro per generazione immagini (default)
+        ai_model = "banana_pro"  # Banana Pro usa Stable Diffusion per generare immagini
         
         ai_result = await ai_service.generate_image_with_product(
             customer_photo_url=photo["image_url"],
