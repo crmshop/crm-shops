@@ -133,7 +133,8 @@ class BananaProService:
                             "temperature": 0.7,
                             "topK": 40,
                             "topP": 0.95,
-                            "maxOutputTokens": 4096
+                            "maxOutputTokens": 4096,
+                            "responseMimeType": "image/png"  # Richiedi immagine PNG come nell'esempio ufficiale
                         }
                     }
                 )
