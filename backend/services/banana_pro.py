@@ -16,8 +16,8 @@ class BananaProService:
     
     def __init__(self):
         self.api_key = settings.BANANA_PRO_API_KEY
-        # Usa Google Imagen API per generazione immagini con API key di Google AI Studio
-        # Imagen API endpoint: https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict
+        # Usa Google Gemini API con modello Nano Banana Pro per generazione immagini
+        # Modello: gemini-3-pro-image-preview (richiede fatturazione attiva)
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
         if not self.api_key:
             logger.warning("BANANA_PRO_API_KEY non configurata")
@@ -29,7 +29,7 @@ class BananaProService:
         product_image_url: str,
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
-        model: str = "imagen-3.0-generate-001"  # Modello Google Imagen per generazione immagini
+        model: str = "gemini-3-pro-image-preview"  # Modello Nano Banana Pro per generazione immagini
     ) -> Dict[str, Any]:
         """
         Genera un'immagine combinando foto cliente e prodotto
@@ -88,31 +88,35 @@ class BananaProService:
                     logger.error(f"❌ Errore download immagine prodotto: {e}")
                     raise Exception(f"Impossibile scaricare immagine prodotto: {str(e)}")
             
-            # Prepara payload per Google Imagen API
-            # Imagen API richiede prompt e immagini di riferimento in base64
-            endpoint = f"{self.base_url}/models/{model}:predict"
-            logger.info(f"🚀 Chiamata API Google Imagen: {endpoint}")
+            # Prepara contenuto per Gemini API (formato standard)
+            # Nano Banana Pro usa l'endpoint generateContent come Gemini
+            endpoint = f"{self.base_url}/models/{model}:generateContent"
+            logger.info(f"🚀 Chiamata API Google Gemini (Nano Banana Pro): {endpoint}")
             
-            # Google Imagen payload formato
-            imagen_payload = {
-                "instances": [
-                    {
-                        "prompt": prompt,
-                        "image": {
-                            "bytesBase64Encoded": customer_image_data
+            # Gemini API payload formato (multimodale con immagini)
+            contents = [
+                {
+                    "parts": [
+                        {
+                            "text": f"{prompt}\n\nGenerate a realistic image of the person from the first image wearing the clothing item from the second image. High quality, professional photography style."
                         },
-                        "mask": None
-                    }
-                ],
-                "parameters": {
-                    "sampleCount": 1,
-                    "aspectRatio": "1:1",
-                    "safetyFilterLevel": "block_some",
-                    "personGeneration": "allow_all"
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": customer_image_data
+                            }
+                        },
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": product_image_data
+                            }
+                        }
+                    ]
                 }
-            }
+            ]
             
-            logger.info(f"   Payload preparato per Google Imagen")
+            logger.info(f"   Payload preparato per Gemini API")
             
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
@@ -121,33 +125,45 @@ class BananaProService:
                     headers={
                         "Content-Type": "application/json"
                     },
-                    json=imagen_payload
+                    json={
+                        "contents": contents,
+                        "generationConfig": {
+                            "temperature": 0.7,
+                            "topK": 40,
+                            "topP": 0.95,
+                            "maxOutputTokens": 2048
+                        }
+                    }
                 )
                 
                 response.raise_for_status()
                 result = response.json()
-                logger.info(f"   Risultato Google Imagen: {json.dumps(result, indent=2)}")
+                logger.info(f"   Risultato Gemini API: {json.dumps(result, indent=2)}")
                 
-                # Google Imagen restituisce le immagini generate in base64
-                if "predictions" in result and len(result["predictions"]) > 0:
-                    # Estrai l'immagine generata (in base64)
-                    prediction = result["predictions"][0]
-                    if "bytesBase64Encoded" in prediction:
-                        image_data = prediction["bytesBase64Encoded"]
-                    elif "image" in prediction:
-                        image_data = prediction["image"]
-                    else:
-                        raise ValueError(f"Formato risposta Google Imagen non riconosciuto: {prediction}")
-                    
-                    # Salva l'immagine su Supabase Storage
-                    supabase_image_url = await self._save_to_supabase_storage(image_data)
-                    return {
-                        "image_url": supabase_image_url,
-                        "status": "completed",
-                        "ai_service": "banana_pro"
-                    }
-                else:
-                    raise ValueError(f"Risposta Google Imagen non valida: {result}")
+                # Gemini API restituisce il risultato nel formato standard
+                if "candidates" in result and len(result["candidates"]) > 0:
+                    candidate = result["candidates"][0]
+                    if "content" in candidate and "parts" in candidate["content"]:
+                        # Cerca dati immagine nella risposta
+                        for part in candidate["content"]["parts"]:
+                            if "inline_data" in part:
+                                image_data = part["inline_data"]["data"]
+                                # Salva l'immagine generata su Supabase Storage
+                                supabase_image_url = await self._save_to_supabase_storage(image_data)
+                                return {
+                                    "image_url": supabase_image_url,
+                                    "status": "completed",
+                                    "ai_service": "banana_pro"
+                                }
+                
+                # Se non c'è immagine nella risposta
+                logger.warning("Gemini API non ha restituito immagine nella risposta")
+                logger.warning(f"   Risposta completa: {json.dumps(result, indent=2)}")
+                raise ValueError(
+                    "Gemini API non ha restituito un'immagine. "
+                    "Verifica che il modello 'gemini-3-pro-image-preview' sia disponibile "
+                    "e che la fatturazione sia attiva sul tuo account Google Cloud."
+                )
                     
         except httpx.HTTPError as e:
             import traceback
