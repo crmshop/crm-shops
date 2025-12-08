@@ -119,6 +119,7 @@ class BananaProService:
             logger.info(f"   Payload preparato per Gemini API")
             
             async with httpx.AsyncClient(timeout=120.0) as client:
+                logger.info(f"   Invio richiesta a Gemini API...")
                 response = await client.post(
                     endpoint,
                     params={"key": self.api_key},
@@ -136,32 +137,51 @@ class BananaProService:
                     }
                 )
                 
+                logger.info(f"   Status code: {response.status_code}")
+                logger.info(f"   Response headers: {dict(response.headers)}")
+                
                 response.raise_for_status()
                 result = response.json()
+                logger.info(f"   ✅ Risposta ricevuta da Gemini API")
                 logger.info(f"   Risultato Gemini API: {json.dumps(result, indent=2)}")
                 
                 # Gemini API restituisce il risultato nel formato standard
-                if "candidates" in result and len(result["candidates"]) > 0:
-                    candidate = result["candidates"][0]
-                    if "content" in candidate and "parts" in candidate["content"]:
-                        # Cerca dati immagine nella risposta
-                        for part in candidate["content"]["parts"]:
-                            if "inline_data" in part:
-                                image_data = part["inline_data"]["data"]
-                                # Salva l'immagine generata su Supabase Storage
-                                supabase_image_url = await self._save_to_supabase_storage(image_data)
-                                return {
-                                    "image_url": supabase_image_url,
-                                    "status": "completed",
-                                    "ai_service": "banana_pro"
-                                }
+                logger.info(f"   Analisi risposta Gemini API...")
+                if "candidates" in result:
+                    logger.info(f"   Trovati {len(result['candidates'])} candidates")
+                    if len(result["candidates"]) > 0:
+                        candidate = result["candidates"][0]
+                        logger.info(f"   Candidate keys: {list(candidate.keys())}")
+                        if "content" in candidate:
+                            logger.info(f"   Content keys: {list(candidate['content'].keys())}")
+                            if "parts" in candidate["content"]:
+                                logger.info(f"   Trovati {len(candidate['content']['parts'])} parts")
+                                # Cerca dati immagine nella risposta
+                                for idx, part in enumerate(candidate["content"]["parts"]):
+                                    logger.info(f"   Part {idx} keys: {list(part.keys())}")
+                                    if "inline_data" in part:
+                                        logger.info(f"   ✅ Trovata immagine in part {idx}")
+                                        image_data = part["inline_data"]["data"]
+                                        logger.info(f"   Dimensione dati immagine: {len(image_data)} caratteri")
+                                        # Salva l'immagine generata su Supabase Storage
+                                        logger.info(f"   Salvataggio immagine su Supabase Storage...")
+                                        supabase_image_url = await self._save_to_supabase_storage(image_data)
+                                        logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                                        return {
+                                            "image_url": supabase_image_url,
+                                            "status": "completed",
+                                            "ai_service": "banana_pro"
+                                        }
+                                    elif "text" in part:
+                                        logger.info(f"   Part {idx} contiene testo: {part['text'][:200]}...")
                 
                 # Se non c'è immagine nella risposta
-                logger.warning("Gemini API non ha restituito immagine nella risposta")
-                logger.warning(f"   Risposta completa: {json.dumps(result, indent=2)}")
+                logger.warning("⚠️  Gemini API non ha restituito immagine nella risposta")
+                logger.warning(f"   Struttura risposta: {json.dumps(result, indent=2)}")
                 raise ValueError(
                     "Gemini API non ha restituito un'immagine. "
-                    "Verifica che il modello 'gemini-3-pro-image-preview' sia disponibile "
+                    "Il modello potrebbe aver restituito solo testo invece di un'immagine. "
+                    "Verifica che il modello 'gemini-3-pro-image-preview' supporti la generazione di immagini "
                     "e che la fatturazione sia attiva sul tuo account Google Cloud."
                 )
                     
