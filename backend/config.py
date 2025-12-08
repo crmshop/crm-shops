@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     
     # AI Services
-    BANANA_PRO_API_KEY: str = ""
+    BANANA_PRO_API_KEY: str = ""  # API key da Google AI Studio per Nano Banana Pro
     GEMINI_API_KEY: str = ""
     
     # Application

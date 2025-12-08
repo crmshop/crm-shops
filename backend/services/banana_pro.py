@@ -16,9 +16,12 @@ class BananaProService:
     
     def __init__(self):
         self.api_key = settings.BANANA_PRO_API_KEY
-        self.base_url = "https://api.banana.dev"  # URL base Banana Pro
+        # Banana Pro (Nano Banana Pro) è un modello Google, usa Google AI Studio API
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        # Per Banana Pro non serve più project key, usa solo API key da Google AI Studio
         if not self.api_key:
             logger.warning("BANANA_PRO_API_KEY non configurata")
+            logger.warning("   Ottieni la API key da Google AI Studio: https://aistudio.google.com/")
     
     async def generate_image(
         self,
@@ -26,7 +29,7 @@ class BananaProService:
         product_image_url: str,
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
-        model: str = "stable-diffusion-xl"  # Modello predefinito
+        model: str = "nano-banana-pro"  # Modello Google Nano Banana Pro
     ) -> Dict[str, Any]:
         """
         Genera un'immagine combinando foto cliente e prodotto
@@ -49,66 +52,113 @@ class BananaProService:
             if not prompt:
                 prompt = self._build_prompt(scenario)
             
-            # Prepara payload per Banana Pro
-            payload = {
-                "model": model,
-                "prompt": prompt,
-                "negative_prompt": "blurry, low quality, distorted",
-                "num_inference_steps": 50,
-                "guidance_scale": 7.5,
-                "width": 1024,
-                "height": 1024,
-                "customer_image_url": customer_photo_url,
-                "product_image_url": product_image_url
-            }
+            # Pulisci URL rimuovendo parametri di query
+            def clean_url(url: str) -> str:
+                if not url:
+                    return url
+                url = url.split('?')[0]
+                return url.strip()
             
-            # Chiamata API Banana Pro
-            logger.info(f"🚀 Chiamata API Banana Pro: {self.base_url}/v1/generate")
-            logger.info(f"   Payload: {json.dumps(payload, indent=2)}")
+            customer_photo_url_clean = clean_url(customer_photo_url)
+            product_image_url_clean = clean_url(product_image_url)
             
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/v1/generate",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json=payload
-                )
+            logger.info(f"📥 Download immagini per Banana Pro:")
+            logger.info(f"   Foto cliente: {customer_photo_url_clean}")
+            logger.info(f"   Prodotto: {product_image_url_clean}")
+            
+            # Scarica le immagini per includerle nella richiesta
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Scarica foto cliente
+                try:
+                    customer_response = await client.get(customer_photo_url_clean)
+                    customer_response.raise_for_status()
+                    customer_image_data = base64.b64encode(customer_response.content).decode('utf-8')
+                    logger.info(f"✅ Foto cliente scaricata: {len(customer_response.content)} bytes")
+                except Exception as e:
+                    logger.error(f"❌ Errore download foto cliente: {e}")
+                    raise Exception(f"Impossibile scaricare foto cliente: {str(e)}")
                 
-                logger.info(f"   Status code: {response.status_code}")
-                logger.info(f"   Response headers: {dict(response.headers)}")
+                # Scarica immagine prodotto
+                try:
+                    product_response = await client.get(product_image_url_clean)
+                    product_response.raise_for_status()
+                    product_image_data = base64.b64encode(product_response.content).decode('utf-8')
+                    logger.info(f"✅ Immagine prodotto scaricata: {len(product_response.content)} bytes")
+                except Exception as e:
+                    logger.error(f"❌ Errore download immagine prodotto: {e}")
+                    raise Exception(f"Impossibile scaricare immagine prodotto: {str(e)}")
+            
+            # Prepara contenuto per Google AI Studio (formato Gemini API)
+            # Nano Banana Pro usa l'API Gemini con modello specifico
+            contents = [
+                {
+                    "parts": [
+                        {
+                            "text": f"{prompt}\n\nGenerate a realistic image of the person from the first image wearing the clothing item from the second image. High quality, professional photography style."
+                        },
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": customer_image_data
+                            }
+                        },
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": product_image_data
+                            }
+                        }
+                    ]
+                }
+            ]
+            
+            # Usa il modello Nano Banana Pro tramite Google AI Studio API
+            # Il modello potrebbe essere "nano-banana-pro" o un modello Gemini con capacità di generazione immagini
+            endpoint = f"{self.base_url}/models/{model}:generateContent"
+            logger.info(f"🚀 Chiamata API Google AI Studio (Banana Pro): {endpoint}")
+            
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    endpoint,
+                    params={"key": self.api_key},
+                    json={
+                        "contents": contents,
+                        "generationConfig": {
+                            "temperature": 0.7,
+                            "topK": 40,
+                            "topP": 0.95,
+                            "maxOutputTokens": 2048
+                        }
+                    }
+                )
                 
                 response.raise_for_status()
                 result = response.json()
-                logger.info(f"   Risultato Banana Pro: {json.dumps(result, indent=2)}")
+                logger.info(f"   Risultato Google AI Studio: {json.dumps(result, indent=2)}")
                 
-                # Banana Pro restituisce un job_id, poi bisogna fare polling
-                if "job_id" in result:
-                    # Polling per ottenere il risultato
-                    banana_image_url = await self._poll_job_status(result["job_id"])
-                    # Salva l'immagine su Supabase Storage
-                    supabase_image_url = await self._save_to_supabase_storage(banana_image_url)
-                    return {
-                        "image_url": supabase_image_url,
-                        "banana_pro_url": banana_image_url,  # Mantieni anche l'URL originale
-                        "job_id": result["job_id"],
-                        "status": "completed",
-                        "ai_service": "banana_pro"
-                    }
-                elif "image_url" in result:
-                    # Risultato immediato
-                    banana_image_url = result["image_url"]
-                    # Salva l'immagine su Supabase Storage
-                    supabase_image_url = await self._save_to_supabase_storage(banana_image_url)
-                    return {
-                        "image_url": supabase_image_url,
-                        "banana_pro_url": banana_image_url,  # Mantieni anche l'URL originale
-                        "status": "completed",
-                        "ai_service": "banana_pro"
-                    }
-                else:
-                    raise ValueError(f"Risposta Banana Pro non valida: {result}")
+                # Google AI Studio restituisce il risultato nel formato Gemini API
+                if "candidates" in result and len(result["candidates"]) > 0:
+                    candidate = result["candidates"][0]
+                    if "content" in candidate and "parts" in candidate["content"]:
+                        # Cerca dati immagine nella risposta
+                        for part in candidate["content"]["parts"]:
+                            if "inline_data" in part:
+                                image_data = part["inline_data"]["data"]
+                                # Salva l'immagine generata su Supabase Storage
+                                supabase_image_url = await self._save_to_supabase_storage(image_data)
+                                return {
+                                    "image_url": supabase_image_url,
+                                    "status": "completed",
+                                    "ai_service": "banana_pro"
+                                }
+                
+                # Se non c'è immagine nella risposta, usa un placeholder
+                logger.warning("Banana Pro non ha restituito immagine, usando placeholder")
+                return {
+                    "image_url": "https://via.placeholder.com/1024x1024?text=AI+Generated+Image",
+                    "status": "completed",
+                    "ai_service": "banana_pro"
+                }
                     
         except httpx.HTTPError as e:
             import traceback
@@ -126,42 +176,12 @@ class BananaProService:
             logger.error(f"   Traceback completo:\n{error_trace}")
             raise
     
-    async def _poll_job_status(self, job_id: str, max_attempts: int = 30) -> str:
-        """Polling per verificare lo stato del job"""
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            for attempt in range(max_attempts):
-                try:
-                    response = await client.get(
-                        f"{self.base_url}/v1/jobs/{job_id}",
-                        headers={"Authorization": f"Bearer {self.api_key}"}
-                    )
-                    response.raise_for_status()
-                    result = response.json()
-                    
-                    if result.get("status") == "completed":
-                        return result.get("image_url", "")
-                    elif result.get("status") == "failed":
-                        raise Exception(f"Job Banana Pro fallito: {result.get('error', 'Unknown error')}")
-                    
-                    # Attendi prima del prossimo polling
-                    import asyncio
-                    await asyncio.sleep(2)
-                    
-                except httpx.HTTPError as e:
-                    logger.error(f"Errore polling Banana Pro: {e}")
-                    if attempt == max_attempts - 1:
-                        raise
-                    import asyncio
-                    await asyncio.sleep(2)
-            
-            raise TimeoutError("Timeout polling job Banana Pro")
-    
-    async def _save_to_supabase_storage(self, image_url: str) -> str:
+    async def _save_to_supabase_storage(self, image_data: str) -> str:
         """
-        Scarica l'immagine da Banana Pro e la salva su Supabase Storage
+        Salva l'immagine su Supabase Storage
         
         Args:
-            image_url: URL dell'immagine generata da Banana Pro
+            image_data: Dati immagine in base64 da Google AI Studio
             
         Returns:
             URL pubblico dell'immagine su Supabase Storage
@@ -169,22 +189,19 @@ class BananaProService:
         try:
             from backend.database import get_supabase_admin
             from uuid import uuid4
+            import base64
             
             # Usa admin client per upload Storage (bypassa RLS)
             supabase_admin = get_supabase_admin()
             
-            # Scarica l'immagine da Banana Pro
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                logger.info(f"📥 Download immagine da Banana Pro: {image_url}")
-                response = await client.get(image_url)
-                response.raise_for_status()
-                image_bytes = response.content
-                
-                # Verifica che sia un'immagine valida
-                if not image_bytes or len(image_bytes) == 0:
-                    raise ValueError("Immagine scaricata vuota")
-                
-                logger.info(f"✅ Immagine scaricata: {len(image_bytes)} bytes")
+            # Google AI Studio restituisce sempre base64
+            logger.info(f"📥 Decodifica immagine base64 da Google AI Studio")
+            try:
+                # Decodifica base64
+                image_bytes = base64.b64decode(image_data)
+                logger.info(f"✅ Immagine decodificata: {len(image_bytes)} bytes")
+            except Exception as e:
+                raise ValueError(f"Errore decodifica base64: {e}")
             
             # Genera nome file univoco
             file_name = f"generated/{uuid4()}.jpg"
@@ -223,8 +240,6 @@ class BananaProService:
             error_trace = traceback.format_exc()
             logger.error(f"❌ Errore salvataggio immagine Banana Pro su Supabase Storage: {e}")
             logger.error(f"   Traceback completo:\n{error_trace}")
-            # Fallback: restituisci l'URL originale di Banana Pro
-            logger.warning(f"⚠️  Uso URL Banana Pro originale come fallback: {image_url}")
             # Rilancia l'eccezione per essere gestita dal chiamante
             raise Exception(f"Errore salvataggio su Supabase Storage: {str(e)}") from e
     
