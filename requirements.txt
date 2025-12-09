@@ -17,8 +17,8 @@ python-dotenv==1.0.0
 httpx>=0.24.0,<0.25.0
 requests==2.31.0
 
-# Google Generative AI
-google-generativeai>=0.3.0
+# Google Generative AI (nuova libreria)
+google-genai>=0.2.0
 Pillow>=10.0.0  # Per gestire immagini PIL
 
 # Validazione dati

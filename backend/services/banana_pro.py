@@ -10,14 +10,19 @@ import asyncio
 import httpx
 
 try:
+    # Prova prima il formato nuovo (google.genai)
     from google import genai
     from google.genai import types
+    USE_NEW_API = True
     GENAI_AVAILABLE = True
 except ImportError:
     try:
+        # Fallback al formato vecchio (google.generativeai)
         import google.generativeai as genai
+        USE_NEW_API = False
         GENAI_AVAILABLE = True
     except ImportError:
+        USE_NEW_API = False
         GENAI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -39,12 +44,22 @@ class BananaProService:
             logger.warning("   Ottieni la API key da Google AI Studio: https://aistudio.google.com/")
             return
         
-        # Usa il formato corretto come nel notebook funzionante
+        # Usa il formato corretto in base alla versione disponibile
         try:
-            from google import genai
-            self.client = genai.Client(api_key=self.api_key)
-            self.model_name = "gemini-2.5-flash-image"  # Modello dal notebook funzionante
-            logger.info(f"✅ Google Generative AI configurato con modello {self.model_name}")
+            if USE_NEW_API:
+                # Formato nuovo: google.genai.Client
+                from google import genai
+                self.client = genai.Client(api_key=self.api_key)
+                self.model_name = "gemini-2.5-flash-image"
+                self.use_new_api = True
+                logger.info(f"✅ Google Generative AI configurato (nuovo formato) con modello {self.model_name}")
+            else:
+                # Formato vecchio: google.generativeai
+                import google.generativeai as genai
+                genai.configure(api_key=self.api_key)
+                self.model = genai.GenerativeModel('gemini-2.5-flash-image')
+                self.use_new_api = False
+                logger.info(f"✅ Google Generative AI configurato (formato legacy) con modello gemini-2.5-flash-image")
         except Exception as e:
             logger.error(f"❌ Errore configurazione Google Generative AI: {e}")
             raise
@@ -149,36 +164,58 @@ class BananaProService:
             
             logger.info(f"   ✅ Risposta ricevuta da Gemini API")
             
-            # Estrai immagine dalla risposta usando il formato del notebook funzionante
-            # response.parts contiene le parti della risposta
-            for part in response.parts:
-                if part.text is not None:
-                    logger.info(f"   Part contiene testo: {part.text[:200]}...")
-                elif part.inline_data is not None:
-                    # Usa as_image() per ottenere l'immagine PIL
-                    generated_image = part.as_image()
-                    logger.info(f"   ✅ Trovata immagine generata: {generated_image.size}")
-                    
-                    # Converti PIL Image in bytes per salvare su Supabase
-                    import io
-                    image_bytes_io = io.BytesIO()
-                    generated_image.save(image_bytes_io, format='PNG')
-                    image_bytes = image_bytes_io.getvalue()
-                    
-                    # Converti bytes in base64 per compatibilità con _save_to_supabase_storage
-                    image_data_base64 = base64.b64encode(image_bytes).decode('utf-8')
-                    logger.info(f"   Immagine convertita in base64: {len(image_data_base64)} caratteri")
-                    
-                    # Salva l'immagine su Supabase Storage
-                    logger.info(f"   Salvataggio immagine su Supabase Storage...")
-                    supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
-                    logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
-                    
-                    return {
-                        "image_url": supabase_image_url,
-                        "status": "completed",
-                        "ai_service": "banana_pro"
-                    }
+            # Estrai immagine dalla risposta usando il formato corretto in base all'API disponibile
+            if self.use_new_api:
+                # Formato nuovo: response.parts contiene le parti della risposta
+                for part in response.parts:
+                    if part.text is not None:
+                        logger.info(f"   Part contiene testo: {part.text[:200]}...")
+                    elif part.inline_data is not None:
+                        # Usa as_image() per ottenere l'immagine PIL
+                        generated_image = part.as_image()
+                        logger.info(f"   ✅ Trovata immagine generata: {generated_image.size}")
+                        
+                        # Converti PIL Image in bytes per salvare su Supabase
+                        import io
+                        image_bytes_io = io.BytesIO()
+                        generated_image.save(image_bytes_io, format='PNG')
+                        image_bytes = image_bytes_io.getvalue()
+                        
+                        # Converti bytes in base64 per compatibilità con _save_to_supabase_storage
+                        image_data_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                        logger.info(f"   Immagine convertita in base64: {len(image_data_base64)} caratteri")
+                        
+                        # Salva l'immagine su Supabase Storage
+                        logger.info(f"   Salvataggio immagine su Supabase Storage...")
+                        supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
+                        logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                        
+                        return {
+                            "image_url": supabase_image_url,
+                            "status": "completed",
+                            "ai_service": "banana_pro"
+                        }
+            else:
+                # Formato vecchio: response.candidates[0].content.parts
+                if response.candidates and len(response.candidates) > 0:
+                    candidate = response.candidates[0]
+                    if candidate.content and candidate.content.parts:
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'inline_data') and part.inline_data:
+                                # Estrai dati base64 dall'immagine
+                                image_data_base64 = part.inline_data.data
+                                logger.info(f"   ✅ Trovata immagine generata: {len(image_data_base64)} caratteri base64")
+                                
+                                # Salva l'immagine su Supabase Storage
+                                logger.info(f"   Salvataggio immagine su Supabase Storage...")
+                                supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
+                                logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                                
+                                return {
+                                    "image_url": supabase_image_url,
+                                    "status": "completed",
+                                    "ai_service": "banana_pro"
+                                }
             
             # Se non c'è immagine nella risposta
             logger.error("⚠️  Gemini API non ha restituito immagine nella risposta")
