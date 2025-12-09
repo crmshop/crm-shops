@@ -32,15 +32,22 @@ class BananaProService:
     def __init__(self):
         self.api_key = settings.BANANA_PRO_API_KEY
         if not GENAI_AVAILABLE:
-            raise ImportError("google.generativeai non disponibile. Installa con: pip install google-generativeai")
-        
-        # Configura Google Generative AI
-        genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('models/gemini-3-pro-image-preview')
+            raise ImportError("google.genai non disponibile. Installa con: pip install google-generativeai")
         
         if not self.api_key:
             logger.warning("BANANA_PRO_API_KEY non configurata")
             logger.warning("   Ottieni la API key da Google AI Studio: https://aistudio.google.com/")
+            return
+        
+        # Usa il formato corretto come nel notebook funzionante
+        try:
+            from google import genai
+            self.client = genai.Client(api_key=self.api_key)
+            self.model_name = "gemini-2.5-flash-image"  # Modello dal notebook funzionante
+            logger.info(f"✅ Google Generative AI configurato con modello {self.model_name}")
+        except Exception as e:
+            logger.error(f"❌ Errore configurazione Google Generative AI: {e}")
+            raise
     
     async def generate_image(
         self,
