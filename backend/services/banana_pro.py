@@ -10,15 +10,20 @@ import asyncio
 import httpx
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
     GENAI_AVAILABLE = True
 except ImportError:
-    GENAI_AVAILABLE = False
+    try:
+        import google.generativeai as genai
+        GENAI_AVAILABLE = True
+    except ImportError:
+        GENAI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 if not GENAI_AVAILABLE:
-    logger.warning("google.generativeai non disponibile. Installa con: pip install google-generativeai")
+    logger.warning("google.genai non disponibile. Installa con: pip install google-generativeai")
 
 
 class BananaProService:
@@ -113,27 +118,20 @@ class BananaProService:
             logger.info(f"🚀 Generazione immagine con Gemini 3 Pro Image Preview")
             logger.info(f"   Prompt: {full_prompt[:200]}...")
             
-            # Usa la libreria google.generativeai invece delle chiamate HTTP dirette
-            # La libreria gestisce correttamente response_mime_type="image/png"
+            # Usa il formato corretto come nel notebook funzionante
             def generate_image_sync():
                 """Funzione sincrona per generare immagine (la libreria non è async)"""
-                import PIL.Image
+                from PIL import Image
                 import io
                 
                 # Converti bytes in PIL Image
-                customer_image = PIL.Image.open(io.BytesIO(customer_image_bytes))
-                product_image = PIL.Image.open(io.BytesIO(product_image_bytes))
+                customer_image = Image.open(io.BytesIO(customer_image_bytes))
+                product_image = Image.open(io.BytesIO(product_image_bytes))
                 
-                # Genera immagine usando la libreria
-                response = self.model.generate_content(
-                    [
-                        full_prompt,
-                        customer_image,
-                        product_image
-                    ],
-                    generation_config=genai.types.GenerationConfig(
-                        response_mime_type="image/png"
-                    )
+                # Genera immagine usando il formato del notebook funzionante
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=[full_prompt, customer_image, product_image],
                 )
                 
                 return response
@@ -144,31 +142,43 @@ class BananaProService:
             
             logger.info(f"   ✅ Risposta ricevuta da Gemini API")
             
-            # Estrai immagine dalla risposta (formato della libreria)
-            if response.candidates and len(response.candidates) > 0:
-                candidate = response.candidates[0]
-                if candidate.content and candidate.content.parts:
-                    for part in candidate.content.parts:
-                        if hasattr(part, 'inline_data') and part.inline_data:
-                            image_data = part.inline_data.data
-                            logger.info(f"   ✅ Trovata immagine generata: {len(image_data)} caratteri base64")
-                            
-                            # Salva l'immagine su Supabase Storage
-                            logger.info(f"   Salvataggio immagine su Supabase Storage...")
-                            supabase_image_url = await self._save_to_supabase_storage(image_data)
-                            logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
-                            
-                            return {
-                                "image_url": supabase_image_url,
-                                "status": "completed",
-                                "ai_service": "banana_pro"
-                            }
+            # Estrai immagine dalla risposta usando il formato del notebook funzionante
+            # response.parts contiene le parti della risposta
+            for part in response.parts:
+                if part.text is not None:
+                    logger.info(f"   Part contiene testo: {part.text[:200]}...")
+                elif part.inline_data is not None:
+                    # Usa as_image() per ottenere l'immagine PIL
+                    generated_image = part.as_image()
+                    logger.info(f"   ✅ Trovata immagine generata: {generated_image.size}")
+                    
+                    # Converti PIL Image in bytes per salvare su Supabase
+                    import io
+                    image_bytes_io = io.BytesIO()
+                    generated_image.save(image_bytes_io, format='PNG')
+                    image_bytes = image_bytes_io.getvalue()
+                    
+                    # Converti bytes in base64 per compatibilità con _save_to_supabase_storage
+                    image_data_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                    logger.info(f"   Immagine convertita in base64: {len(image_data_base64)} caratteri")
+                    
+                    # Salva l'immagine su Supabase Storage
+                    logger.info(f"   Salvataggio immagine su Supabase Storage...")
+                    supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
+                    logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                    
+                    return {
+                        "image_url": supabase_image_url,
+                        "status": "completed",
+                        "ai_service": "banana_pro"
+                    }
             
             # Se non c'è immagine nella risposta
             logger.error("⚠️  Gemini API non ha restituito immagine nella risposta")
+            logger.error(f"   Numero di parts nella risposta: {len(response.parts) if hasattr(response, 'parts') else 0}")
             raise ValueError(
                 "Gemini API non ha restituito un'immagine. "
-                "Verifica che il modello 'gemini-3-pro-image-preview' sia disponibile "
+                f"Verifica che il modello '{self.model_name}' sia disponibile "
                 "e che la fatturazione sia attiva sul tuo account Google Cloud."
             )
                     

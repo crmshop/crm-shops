@@ -19,6 +19,7 @@ requests==2.31.0
 
 # Google Generative AI
 google-generativeai>=0.3.0
+Pillow>=10.0.0  # Per gestire immagini PIL
 
 # Validazione dati
 pydantic>=2.9.0
