@@ -55,8 +55,9 @@ class BananaProService:
                 # Formato nuovo: google.genai.Client
                 from google import genai
                 self.client = genai.Client(api_key=self.api_key)
-                # Usa modello per generazione immagini (imagen-3 o gemini-3-pro-image-preview)
-                self.model_name = "imagen-3"  # Modello per generazione immagini
+                # Usa modello per generazione immagini con generate_content
+                # gemini-2.5-flash-image supporta generate_content con input immagini
+                self.model_name = "gemini-2.5-flash-image"  # Modello per generazione immagini
                 self.use_new_api = True
                 logger.info(f"✅ Google Generative AI configurato (nuovo formato) con modello {self.model_name}")
             else:
@@ -77,7 +78,7 @@ class BananaProService:
         product_image_url: str,
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
-        model: str = "imagen-3"  # Modello Imagen 3 per generazione immagini (o gemini-3-pro-image-preview)
+        model: str = "gemini-2.5-flash-image"  # Modello per generazione immagini con input immagini
     ) -> Dict[str, Any]:
         """
         Genera un'immagine combinando foto cliente e prodotto
