@@ -55,7 +55,8 @@ class BananaProService:
                 # Formato nuovo: google.genai.Client
                 from google import genai
                 self.client = genai.Client(api_key=self.api_key)
-                self.model_name = "gemini-2.5-flash-image"
+                # Usa modello per generazione immagini (imagen-3 o gemini-3-pro-image-preview)
+                self.model_name = "imagen-3"  # Modello per generazione immagini
                 self.use_new_api = True
                 logger.info(f"✅ Google Generative AI configurato (nuovo formato) con modello {self.model_name}")
             else:
@@ -76,7 +77,7 @@ class BananaProService:
         product_image_url: str,
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
-        model: str = "gemini-3-pro-image-preview"  # Modello Gemini 3 Pro Image Preview per generazione immagini
+        model: str = "imagen-3"  # Modello Imagen 3 per generazione immagini (o gemini-3-pro-image-preview)
     ) -> Dict[str, Any]:
         """
         Genera un'immagine combinando foto cliente e prodotto
@@ -203,7 +204,18 @@ class BananaProService:
                                 logger.warning(f"   ⚠️ as_image() ha restituito tipo non PIL: {type(generated_image)}")
                                 # Prova a estrarre i dati direttamente
                                 if hasattr(part.inline_data, 'data'):
-                                    image_data_base64 = part.inline_data.data
+                                    image_data = part.inline_data.data
+                                    
+                                    # Converti bytes a stringa se necessario
+                                    if isinstance(image_data, bytes):
+                                        import base64
+                                        image_data_base64 = base64.b64encode(image_data).decode('utf-8')
+                                    elif isinstance(image_data, str):
+                                        image_data_base64 = image_data
+                                    else:
+                                        logger.error(f"   ❌ Tipo dati non supportato: {type(image_data)}")
+                                        continue
+                                    
                                     logger.info(f"   ✅ Trovati dati immagine base64: {len(image_data_base64)} caratteri")
                                     supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
                                     logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
@@ -219,7 +231,18 @@ class BananaProService:
                                 logger.warning(f"   ⚠️ Immagine non ha attributo size: {type(generated_image)}")
                                 # Prova a convertire direttamente da inline_data
                                 if hasattr(part.inline_data, 'data'):
-                                    image_data_base64 = part.inline_data.data
+                                    image_data = part.inline_data.data
+                                    
+                                    # Converti bytes a stringa se necessario
+                                    if isinstance(image_data, bytes):
+                                        import base64
+                                        image_data_base64 = base64.b64encode(image_data).decode('utf-8')
+                                    elif isinstance(image_data, str):
+                                        image_data_base64 = image_data
+                                    else:
+                                        logger.error(f"   ❌ Tipo dati non supportato: {type(image_data)}")
+                                        continue
+                                    
                                     logger.info(f"   ✅ Trovati dati immagine base64: {len(image_data_base64)} caratteri")
                                     supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
                                     logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
@@ -258,7 +281,18 @@ class BananaProService:
                             if hasattr(part, 'inline_data') and part.inline_data is not None:
                                 try:
                                     if hasattr(part.inline_data, 'data'):
-                                        image_data_base64 = part.inline_data.data
+                                        image_data = part.inline_data.data
+                                        
+                                        # Converti bytes a stringa se necessario
+                                        if isinstance(image_data, bytes):
+                                            import base64
+                                            image_data_base64 = base64.b64encode(image_data).decode('utf-8')
+                                        elif isinstance(image_data, str):
+                                            image_data_base64 = image_data
+                                        else:
+                                            logger.error(f"   ❌ Tipo dati non supportato: {type(image_data)}")
+                                            continue
+                                        
                                         logger.info(f"   ✅ Fallback: trovati dati immagine base64: {len(image_data_base64)} caratteri")
                                         supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
                                         logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
@@ -268,7 +302,9 @@ class BananaProService:
                                             "ai_service": "banana_pro"
                                         }
                                 except Exception as fallback_error:
+                                    import traceback
                                     logger.error(f"   ❌ Errore anche nel fallback: {fallback_error}")
+                                    logger.error(f"   Traceback: {traceback.format_exc()}")
                             continue
             else:
                 # Formato vecchio: response.candidates[0].content.parts
@@ -322,7 +358,7 @@ class BananaProService:
         Salva l'immagine su Supabase Storage
         
         Args:
-            image_data: Dati immagine in base64 da Google Imagen API OPPURE URL
+            image_data: Dati immagine in base64 (stringa) da Google Imagen API OPPURE URL (stringa)
             
         Returns:
             URL pubblico dell'immagine su Supabase Storage
@@ -334,6 +370,14 @@ class BananaProService:
             
             # Usa admin client per upload Storage (bypassa RLS)
             supabase_admin = get_supabase_admin()
+            
+            # Converti bytes a stringa se necessario
+            if isinstance(image_data, bytes):
+                image_data = image_data.decode('utf-8')
+            
+            # Verifica che sia una stringa
+            if not isinstance(image_data, str):
+                raise ValueError(f"image_data deve essere una stringa o bytes, ricevuto: {type(image_data)}")
             
             # Determina se è un URL o base64
             if image_data.startswith("http://") or image_data.startswith("https://"):
