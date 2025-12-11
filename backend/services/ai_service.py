@@ -19,18 +19,18 @@ class AIService:
 
     async def generate_image_with_product(
         self,
-        customer_photo_url: str,
-        product_image_url: str,
+        customer_photo_urls: list[str],  # Lista di URL foto cliente (fino a 3)
+        product_image_urls: list[str],  # Lista di URL immagini prodotto (fino a 10)
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
         ai_model: Optional[str] = "banana_pro"  # Default: Banana Pro (Gemini non può generare immagini)
     ) -> Dict[str, Any]:
         """
-        Genera un'immagine di un cliente che indossa un prodotto usando l'AI.
+        Genera un'immagine di un cliente che indossa prodotti usando l'AI.
         
         Args:
-            customer_photo_url: URL della foto del cliente
-            product_image_url: URL dell'immagine del prodotto
+            customer_photo_urls: Lista di URL delle foto del cliente (fino a 3)
+            product_image_urls: Lista di URL delle immagini dei prodotti (fino a 10)
             prompt: Prompt personalizzato (opzionale)
             scenario: Scenario/contesto (montagna, spiaggia, etc.)
             ai_model: Modello AI da usare ('banana_pro' o 'gemini')
@@ -39,8 +39,8 @@ class AIService:
             Dict con 'image_url', 'status', 'ai_service'
         """
         logger.info(f"Generazione immagine AI richiesta con modello: {ai_model}")
-        logger.info(f"Foto cliente: {customer_photo_url}")
-        logger.info(f"Immagine prodotto: {product_image_url}")
+        logger.info(f"Foto cliente: {len(customer_photo_urls)} immagini")
+        logger.info(f"Immagini prodotto: {len(product_image_urls)} immagini")
         logger.info(f"Prompt: {prompt}, Scenario: {scenario}")
 
         try:
@@ -51,8 +51,8 @@ class AIService:
                     ai_model = "gemini"
                 else:
                     result = await self.banana_pro.generate_image(
-                        customer_photo_url=customer_photo_url,
-                        product_image_url=product_image_url,
+                        customer_photo_urls=customer_photo_urls,
+                        product_image_urls=product_image_urls,
                         prompt=prompt,
                         scenario=scenario
                     )
@@ -68,9 +68,10 @@ class AIService:
                         "error": "Gemini API key non configurata"
                     }
                 
+                # Gemini non supporta generazione immagini, usa solo la prima foto e prodotto
                 result = await self.gemini.generate_image(
-                    customer_photo_url=customer_photo_url,
-                    product_image_url=product_image_url,
+                    customer_photo_url=customer_photo_urls[0] if customer_photo_urls else "",
+                    product_image_url=product_image_urls[0] if product_image_urls else "",
                     prompt=prompt,
                     scenario=scenario
                 )

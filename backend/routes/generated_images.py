@@ -138,9 +138,19 @@ async def generate_image(
         # Usa Banana Pro per generazione immagini (default)
         ai_model = "banana_pro"  # Banana Pro usa Stable Diffusion per generare immagini
         
+        # Per compatibilità con endpoint singolo prodotto, usa liste con un elemento
+        customer_photo_urls = [photo["image_url"]]
+        product_image_urls = [product_data.get("image_url")] if product_data and product_data.get("image_url") else []
+        
+        if not product_image_urls:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Prodotto non ha un'immagine disponibile"
+            )
+        
         ai_result = await ai_service.generate_image_with_product(
-            customer_photo_url=photo["image_url"],
-            product_image_url=product_data.get("image_url") if product_data else None,
+            customer_photo_urls=customer_photo_urls,
+            product_image_urls=product_image_urls,
             prompt=prompt,
             scenario=request.scenario,
             ai_model=ai_model
@@ -216,16 +226,24 @@ async def generate_outfit_image(
         
         customer = customer_response.data[0]
         
-        # Recupera foto del cliente (prima foto disponibile)
-        customer_photos_response = supabase.table("customer_photos").select("*").eq("customer_id", str(request.customer_id)).limit(1).execute()
+        # Recupera tutte le foto del cliente (fino a 3)
+        customer_photos_response = supabase.table("customer_photos").select("*").eq("customer_id", str(request.customer_id)).limit(3).execute()
         if not customer_photos_response.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Nessuna foto trovata per questo cliente"
             )
         
-        customer_photo = customer_photos_response.data[0]
-        customer_photo_url = customer_photo["image_url"]
+        customer_photos = customer_photos_response.data
+        customer_photo_urls = [photo.get("image_url") for photo in customer_photos if photo.get("image_url")]
+        
+        if not customer_photo_urls:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nessuna foto cliente valida trovata"
+            )
+        
+        logger.info(f"📸 Foto cliente recuperate: {len(customer_photo_urls)}")
         
         # Recupera prodotti
         products_response = supabase.table("products").select("*").in_("id", [str(pid) for pid in request.product_ids]).execute()
@@ -244,41 +262,31 @@ async def generate_outfit_image(
                 detail="Nessun prodotto ha un'immagine disponibile"
             )
         
+        logger.info(f"🛍️ Prodotti recuperati: {len(product_image_urls)}")
+        
         # Costruisci prompt
         prompt = request.prompt_override
         if not prompt:
             product_names = [p.get("name", "") for p in products]
-            prompt = f"Create a realistic image of the person from the customer photo wearing the following items: {', '.join(product_names)}. High quality, professional photography style."
+            prompt = f"Immagine realistica della persona dalle foto cliente con indossati i seguenti articoli: {', '.join(product_names)}. Alta qualità, stile fotografia professionale."
         
-        # Genera immagine usando AI service (Banana Pro per generazione immagini)
-        # NOTA: Gemini non può generare immagini, solo analizzarle
-        # Per ora usiamo solo il primo prodotto, Banana Pro non supporta multiple products
-        # TODO: Implementare supporto per multiple products con Banana Pro
-        
+        # Genera immagine usando AI service con tutte le immagini
         from backend.services.ai_service import ai_service
         
-        # Usa Banana Pro per generazione immagini (Gemini non supporta generazione)
-        # Per outfit con più prodotti, usa il primo prodotto per ora
-        first_product_url = product_image_urls[0] if product_image_urls else None
-        if not first_product_url:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Almeno un prodotto è richiesto per generare l'immagine"
-            )
-        
         ai_result = await ai_service.generate_image_with_product(
-            customer_photo_url=customer_photo_url,
-            product_image_url=first_product_url,
+            customer_photo_urls=customer_photo_urls,  # Lista di tutte le foto cliente (fino a 3)
+            product_image_urls=product_image_urls,  # Lista di tutte le immagini prodotto (fino a 10)
             prompt=prompt,
             scenario=request.scenario,
-            ai_model="banana_pro"  # Usa Banana Pro invece di Gemini
+            ai_model="banana_pro"  # Usa Banana Pro per generazione immagini
         )
         
         generated_image_url = ai_result.get("image_url", "")
         
         # Salva immagine generata
+        # Usa la prima foto cliente come riferimento principale
         image_data = {
-            "customer_photo_id": str(customer_photo["id"]),
+            "customer_photo_id": str(customer_photos[0]["id"]),
             "image_url": generated_image_url,
             "prompt_used": prompt,
             "scenario": request.scenario,

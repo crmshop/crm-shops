@@ -74,18 +74,18 @@ class BananaProService:
     
     async def generate_image(
         self,
-        customer_photo_url: str,
-        product_image_url: str,
+        customer_photo_urls: list[str],  # Lista di URL foto cliente (fino a 3)
+        product_image_urls: list[str],  # Lista di URL immagini prodotto (fino a 10)
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
         model: str = "gemini-2.5-flash-image"  # Modello per generazione immagini con input immagini
     ) -> Dict[str, Any]:
         """
-        Genera un'immagine combinando foto cliente e prodotto
+        Genera un'immagine combinando foto cliente e prodotti
         
         Args:
-            customer_photo_url: URL della foto del cliente
-            product_image_url: URL dell'immagine del prodotto
+            customer_photo_urls: Lista di URL delle foto del cliente (fino a 3)
+            product_image_urls: Lista di URL delle immagini dei prodotti (fino a 10)
             prompt: Prompt personalizzato (opzionale)
             scenario: Scenario/contesto (montagna, spiaggia, etc.)
             model: Modello AI da usare
@@ -100,11 +100,17 @@ class BananaProService:
         if not self.client and not self.model:
             raise ValueError("Google Generative AI non inizializzato correttamente. Verifica BANANA_PRO_API_KEY.")
         
+        # Validazione input
+        if not customer_photo_urls or len(customer_photo_urls) == 0:
+            raise ValueError("Almeno una foto cliente è richiesta")
+        if len(customer_photo_urls) > 3:
+            raise ValueError("Massimo 3 foto cliente consentite")
+        if not product_image_urls or len(product_image_urls) == 0:
+            raise ValueError("Almeno un prodotto è richiesto")
+        if len(product_image_urls) > 10:
+            raise ValueError("Massimo 10 prodotti consentiti")
+        
         try:
-            # Costruisci prompt se non fornito
-            if not prompt:
-                prompt = self._build_prompt(scenario)
-            
             # Pulisci URL rimuovendo parametri di query
             def clean_url(url: str) -> str:
                 if not url:
@@ -112,52 +118,75 @@ class BananaProService:
                 url = url.split('?')[0]
                 return url.strip()
             
-            customer_photo_url_clean = clean_url(customer_photo_url)
-            product_image_url_clean = clean_url(product_image_url)
+            # Pulisci tutti gli URL
+            customer_photo_urls_clean = [clean_url(url) for url in customer_photo_urls if url]
+            product_image_urls_clean = [clean_url(url) for url in product_image_urls if url]
             
             logger.info(f"📥 Download immagini per Banana Pro:")
-            logger.info(f"   Foto cliente: {customer_photo_url_clean}")
-            logger.info(f"   Prodotto: {product_image_url_clean}")
+            logger.info(f"   Foto cliente: {len(customer_photo_urls_clean)} immagini")
+            logger.info(f"   Prodotti: {len(product_image_urls_clean)} immagini")
             
-            # Scarica le immagini per includerle nella richiesta
+            # Scarica tutte le immagini
             import httpx
+            customer_images_bytes = []
+            product_images_bytes = []
+            
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # Scarica foto cliente
-                try:
-                    customer_response = await client.get(customer_photo_url_clean)
-                    customer_response.raise_for_status()
-                    customer_image_bytes = customer_response.content
-                    logger.info(f"✅ Foto cliente scaricata: {len(customer_image_bytes)} bytes")
-                except Exception as e:
-                    logger.error(f"❌ Errore download foto cliente: {e}")
-                    raise Exception(f"Impossibile scaricare foto cliente: {str(e)}")
+                # Scarica tutte le foto cliente
+                for i, url in enumerate(customer_photo_urls_clean, 1):
+                    try:
+                        response = await client.get(url)
+                        response.raise_for_status()
+                        customer_images_bytes.append(response.content)
+                        logger.info(f"✅ Foto cliente {i}/{len(customer_photo_urls_clean)} scaricata: {len(response.content)} bytes")
+                    except Exception as e:
+                        logger.error(f"❌ Errore download foto cliente {i}: {e}")
+                        raise Exception(f"Impossibile scaricare foto cliente {i}: {str(e)}")
                 
-                # Scarica immagine prodotto
-                try:
-                    product_response = await client.get(product_image_url_clean)
-                    product_response.raise_for_status()
-                    product_image_bytes = product_response.content
-                    logger.info(f"✅ Immagine prodotto scaricata: {len(product_image_bytes)} bytes")
-                except Exception as e:
-                    logger.error(f"❌ Errore download immagine prodotto: {e}")
-                    raise Exception(f"Impossibile scaricare immagine prodotto: {str(e)}")
+                # Scarica tutte le immagini prodotto
+                for i, url in enumerate(product_image_urls_clean, 1):
+                    try:
+                        response = await client.get(url)
+                        response.raise_for_status()
+                        product_images_bytes.append(response.content)
+                        logger.info(f"✅ Immagine prodotto {i}/{len(product_image_urls_clean)} scaricata: {len(response.content)} bytes")
+                    except Exception as e:
+                        logger.error(f"❌ Errore download immagine prodotto {i}: {e}")
+                        raise Exception(f"Impossibile scaricare immagine prodotto {i}: {str(e)}")
             
             # Costruisci prompt se non fornito
             if not prompt:
                 prompt = self._build_prompt(scenario)
             
+            # Costruisci riferimenti alle immagini nel prompt
+            # Foto cliente: {image1}, {image2}, {image3} (fino a 3)
+            # Prodotti: {image4}, {image5}, ..., {image13} (fino a 10)
+            customer_refs = []
+            for i in range(len(customer_images_bytes)):
+                customer_refs.append(f"{{image{i+1}}}")
+            
+            product_refs = []
+            start_idx = len(customer_images_bytes) + 1
+            for i in range(len(product_images_bytes)):
+                product_refs.append(f"{{image{start_idx + i}}}")
+            
             # Prepara prompt completo per generazione immagine
             # IMPORTANTE: Usa riferimenti espliciti alle immagini come nel notebook funzionante
-            # {image1} = foto cliente (prima immagine), {image2} = prodotto (seconda immagine)
+            customer_refs_str = ", ".join(customer_refs)
+            product_refs_str = ", ".join(product_refs)
+            
             full_prompt = (
-                f"Immagine professionale che ritrae la persona dalla foto {{image1}} con indossato "
-                f"l'articolo di abbigliamento come da immagine {{image2}}. "
+                f"Immagine professionale che ritrae la persona dalle foto {customer_refs_str} con indossati "
+                f"gli articoli di abbigliamento come da immagini {product_refs_str}. "
                 f"{prompt} "
-                f"Il volto deve essere fedele alla foto così come la forma fisica. "
-                f"L'immagine deve essere di alta qualità, stile fotografia professionale con illuminazione e composizione appropriate."
+                f"Il volto deve essere fedele alle foto così come la forma fisica. "
+                f"L'immagine deve essere di alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. "
+                f"Tutti gli articoli devono essere visibili e ben indossati dalla persona."
             )
             
             logger.info(f"🚀 Generazione immagine con {self.model_name}")
+            logger.info(f"   Foto cliente: {len(customer_images_bytes)} immagini")
+            logger.info(f"   Prodotti: {len(product_images_bytes)} immagini")
             logger.info(f"   Prompt: {full_prompt[:200]}...")
             
             # Usa il formato corretto come nel notebook funzionante
@@ -166,27 +195,27 @@ class BananaProService:
                 from PIL import Image
                 import io
                 
-                # Converti bytes in PIL Image
-                customer_image = Image.open(io.BytesIO(customer_image_bytes))
-                product_image = Image.open(io.BytesIO(product_image_bytes))
+                # Converti tutte le immagini bytes in PIL Images
+                customer_images = [Image.open(io.BytesIO(img_bytes)) for img_bytes in customer_images_bytes]
+                product_images = [Image.open(io.BytesIO(img_bytes)) for img_bytes in product_images_bytes]
                 
                 # IMPORTANTE: L'ordine delle immagini deve corrispondere ai riferimenti nel prompt
-                # {image1} = customer_image (prima immagine)
-                # {image2} = product_image (seconda immagine)
+                # Prima tutte le foto cliente, poi tutti i prodotti
+                all_images = customer_images + product_images
                 
                 # Genera immagine usando il formato corretto in base all'API disponibile
                 if self.use_new_api:
                     # Formato nuovo: google.genai.Client
-                    # Passa prompt con riferimenti espliciti + immagini nell'ordine corretto
+                    # Passa prompt con riferimenti espliciti + tutte le immagini nell'ordine corretto
+                    contents = [full_prompt] + all_images
                     response = self.client.models.generate_content(
                         model=self.model_name,
-                        contents=[full_prompt, customer_image, product_image],
+                        contents=contents,
                     )
                 else:
                     # Formato vecchio: google.generativeai.GenerativeModel
-                    response = self.model.generate_content(
-                        [full_prompt, customer_image, product_image]
-                    )
+                    contents = [full_prompt] + all_images
+                    response = self.model.generate_content(contents)
                 
                 return response
             
