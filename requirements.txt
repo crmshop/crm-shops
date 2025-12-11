@@ -14,8 +14,7 @@ passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
 
 # HTTP Client - Versioni compatibili con supabase 2.0.0
-httpx==0.24.1  # Versione specifica compatibile con supabase 2.0.0
-httpcore==1.0.5  # Versione compatibile con httpx 0.24.1
+httpx==0.24.1  # Versione specifica compatibile con supabase 2.0.0 (gestisce httpcore automaticamente)
 requests==2.31.0
 anyio==3.7.1  # Versione compatibile con fastapi 0.104.1
 websockets==12.0  # Versione compatibile con realtime (supabase)
