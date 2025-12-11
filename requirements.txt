@@ -13,10 +13,11 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
 
-# HTTP Client - Versioni compatibili con supabase 2.0.0
+# HTTP Client - Versioni compatibili con supabase 2.0.0 e google-genai
 # httpx è usato direttamente nel codice (gemini.py, banana_pro.py)
+# google-genai 1.33.0+ richiede httpx>=0.28.1,<1.0.0
 # Usiamo un range flessibile per permettere a pip di risolvere conflitti
-httpx>=0.24.0,<0.28.0
+httpx>=0.28.1,<1.0.0
 requests==2.31.0
 # NOTA: anyio e websockets sono dipendenze transitive di httpx/uvicorn/supabase
 # NON specificare versioni esplicite - pip le risolverà automaticamente
