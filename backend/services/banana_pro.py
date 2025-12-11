@@ -36,6 +36,11 @@ class BananaProService:
     
     def __init__(self):
         self.api_key = settings.BANANA_PRO_API_KEY
+        self.client = None
+        self.model = None
+        self.model_name = None
+        self.use_new_api = False
+        
         if not GENAI_AVAILABLE:
             raise ImportError("google.genai non disponibile. Installa con: pip install google-generativeai")
         
@@ -58,8 +63,9 @@ class BananaProService:
                 import google.generativeai as genai
                 genai.configure(api_key=self.api_key)
                 self.model = genai.GenerativeModel('gemini-2.5-flash-image')
+                self.model_name = "gemini-2.5-flash-image"
                 self.use_new_api = False
-                logger.info(f"✅ Google Generative AI configurato (formato legacy) con modello gemini-2.5-flash-image")
+                logger.info(f"✅ Google Generative AI configurato (formato legacy) con modello {self.model_name}")
         except Exception as e:
             logger.error(f"❌ Errore configurazione Google Generative AI: {e}")
             raise
@@ -87,6 +93,10 @@ class BananaProService:
         """
         if not self.api_key:
             raise ValueError("BANANA_PRO_API_KEY non configurata")
+        
+        # Verifica che client o model siano inizializzati
+        if not self.client and not self.model:
+            raise ValueError("Google Generative AI non inizializzato correttamente. Verifica BANANA_PRO_API_KEY.")
         
         try:
             # Costruisci prompt se non fornito
@@ -150,11 +160,18 @@ class BananaProService:
                 customer_image = Image.open(io.BytesIO(customer_image_bytes))
                 product_image = Image.open(io.BytesIO(product_image_bytes))
                 
-                # Genera immagine usando il formato del notebook funzionante
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=[full_prompt, customer_image, product_image],
-                )
+                # Genera immagine usando il formato corretto in base all'API disponibile
+                if self.use_new_api:
+                    # Formato nuovo: google.genai.Client
+                    response = self.client.models.generate_content(
+                        model=self.model_name,
+                        contents=[full_prompt, customer_image, product_image],
+                    )
+                else:
+                    # Formato vecchio: google.generativeai.GenerativeModel
+                    response = self.model.generate_content(
+                        [full_prompt, customer_image, product_image]
+                    )
                 
                 return response
             
