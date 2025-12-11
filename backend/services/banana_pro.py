@@ -189,29 +189,87 @@ class BananaProService:
                         logger.info(f"   Part contiene testo: {part.text[:200]}...")
                     elif part.inline_data is not None:
                         # Usa as_image() per ottenere l'immagine PIL
-                        generated_image = part.as_image()
-                        logger.info(f"   ✅ Trovata immagine generata: {generated_image.size}")
-                        
-                        # Converti PIL Image in bytes per salvare su Supabase
-                        import io
-                        image_bytes_io = io.BytesIO()
-                        generated_image.save(image_bytes_io, format='PNG')
-                        image_bytes = image_bytes_io.getvalue()
-                        
-                        # Converti bytes in base64 per compatibilità con _save_to_supabase_storage
-                        image_data_base64 = base64.b64encode(image_bytes).decode('utf-8')
-                        logger.info(f"   Immagine convertita in base64: {len(image_data_base64)} caratteri")
-                        
-                        # Salva l'immagine su Supabase Storage
-                        logger.info(f"   Salvataggio immagine su Supabase Storage...")
-                        supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
-                        logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
-                        
-                        return {
-                            "image_url": supabase_image_url,
-                            "status": "completed",
-                            "ai_service": "banana_pro"
-                        }
+                        try:
+                            generated_image = part.as_image()
+                            
+                            # Verifica che l'immagine sia valida
+                            if generated_image is None:
+                                logger.warning("   ⚠️ as_image() ha restituito None")
+                                continue
+                            
+                            # Verifica che sia una PIL Image con attributo size
+                            from PIL import Image
+                            if not isinstance(generated_image, Image.Image):
+                                logger.warning(f"   ⚠️ as_image() ha restituito tipo non PIL: {type(generated_image)}")
+                                # Prova a estrarre i dati direttamente
+                                if hasattr(part.inline_data, 'data'):
+                                    image_data_base64 = part.inline_data.data
+                                    logger.info(f"   ✅ Trovati dati immagine base64: {len(image_data_base64)} caratteri")
+                                    supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
+                                    logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                                    return {
+                                        "image_url": supabase_image_url,
+                                        "status": "completed",
+                                        "ai_service": "banana_pro"
+                                    }
+                                continue
+                            
+                            # Verifica che abbia l'attributo size
+                            if not hasattr(generated_image, 'size'):
+                                logger.warning(f"   ⚠️ Immagine non ha attributo size: {type(generated_image)}")
+                                # Prova a convertire direttamente da inline_data
+                                if hasattr(part.inline_data, 'data'):
+                                    image_data_base64 = part.inline_data.data
+                                    logger.info(f"   ✅ Trovati dati immagine base64: {len(image_data_base64)} caratteri")
+                                    supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
+                                    logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                                    return {
+                                        "image_url": supabase_image_url,
+                                        "status": "completed",
+                                        "ai_service": "banana_pro"
+                                    }
+                                continue
+                            
+                            logger.info(f"   ✅ Trovata immagine generata: {generated_image.size}")
+                            
+                            # Converti PIL Image in bytes per salvare su Supabase
+                            import io
+                            image_bytes_io = io.BytesIO()
+                            generated_image.save(image_bytes_io, format='PNG')
+                            image_bytes = image_bytes_io.getvalue()
+                            
+                            # Converti bytes in base64 per compatibilità con _save_to_supabase_storage
+                            image_data_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                            logger.info(f"   Immagine convertita in base64: {len(image_data_base64)} caratteri")
+                            
+                            # Salva l'immagine su Supabase Storage
+                            logger.info(f"   Salvataggio immagine su Supabase Storage...")
+                            supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
+                            logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                            
+                            return {
+                                "image_url": supabase_image_url,
+                                "status": "completed",
+                                "ai_service": "banana_pro"
+                            }
+                        except Exception as e:
+                            logger.error(f"   ❌ Errore estrazione immagine: {e}")
+                            # Prova fallback: estrai dati direttamente da inline_data
+                            if hasattr(part, 'inline_data') and part.inline_data is not None:
+                                try:
+                                    if hasattr(part.inline_data, 'data'):
+                                        image_data_base64 = part.inline_data.data
+                                        logger.info(f"   ✅ Fallback: trovati dati immagine base64: {len(image_data_base64)} caratteri")
+                                        supabase_image_url = await self._save_to_supabase_storage(image_data_base64)
+                                        logger.info(f"   ✅ Immagine salvata: {supabase_image_url}")
+                                        return {
+                                            "image_url": supabase_image_url,
+                                            "status": "completed",
+                                            "ai_service": "banana_pro"
+                                        }
+                                except Exception as fallback_error:
+                                    logger.error(f"   ❌ Errore anche nel fallback: {fallback_error}")
+                            continue
             else:
                 # Formato vecchio: response.candidates[0].content.parts
                 if response.candidates and len(response.candidates) > 0:
