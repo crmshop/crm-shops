@@ -100,6 +100,28 @@ Questi pacchetti sono spesso dipendenze transitive e **non dovrebbero** essere n
 - `h11` (gestito da httpcore)
 - `sniffio` (gestito da anyio)
 
+## Conflitto Risolto: FastAPI vs google-genai
+
+### Problema
+- `fastapi==0.104.1` richiede `anyio<4.0.0 and >=3.7.1`
+- `google-genai>=1.9.0` richiede `anyio<5.0.0 and >=4.8.0`
+- **Incompatibili!** ❌
+
+### Soluzione
+Aggiornato FastAPI a `>=0.108.0` che supporta `anyio 4.x.x`:
+- ✅ FastAPI 0.108.0+ supporta anyio 4.x.x
+- ✅ Compatibile con google-genai 1.9.0+
+- ✅ Uvicorn >=0.24.0 è compatibile
+
+### Modifiche Applicate
+```python
+# Prima
+fastapi==0.104.1  # Supporta solo anyio < 4.0.0
+
+# Dopo
+fastapi>=0.108.0  # Supporta anyio 4.x.x
+```
+
 ## Se Incontri Ancora Problemi
 
 1. **Verifica conflitti:**
