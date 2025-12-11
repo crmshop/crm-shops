@@ -115,7 +115,20 @@ Aggiornato FastAPI a `>=0.108.0` che supporta `anyio 4.x.x`:
 - ✅ Compatibile con google-genai 1.9.0+
 - ✅ Uvicorn >=0.24.0 è compatibile
 
-### Conflitto 2: httpx vs google-genai
+### Conflitto 2: httpx vs google-genai vs supabase
+
+#### Problema
+- `httpx>=0.28.1,<1.0.0` (richiesto da google-genai 1.33.0+)
+- `supabase==2.0.0` richiede `httpx<0.25.0 and >=0.24.0`
+- **Incompatibili!** ❌
+
+#### Soluzione
+Aggiornato supabase a `>=2.25.0` che supporta httpx >= 0.28.1:
+- ✅ supabase 2.25.0+ supporta httpx >= 0.28.1
+- ✅ Compatibile con google-genai 1.33.0+
+- ✅ Nessun breaking change per il codice (usa solo create_client e Client)
+
+### Conflitto 3: httpx vs google-genai (risolto con supabase aggiornato)
 
 #### Problema
 - `httpx>=0.24.0,<0.28.0` (range precedente)
