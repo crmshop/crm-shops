@@ -14,10 +14,12 @@ passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
 
 # HTTP Client - Versioni compatibili con supabase 2.0.0
-httpx==0.24.1  # Versione specifica compatibile con supabase 2.0.0 (gestisce httpcore automaticamente)
+# httpx è usato direttamente nel codice (gemini.py, banana_pro.py)
+# Usiamo un range flessibile per permettere a pip di risolvere conflitti
+httpx>=0.24.0,<0.28.0
 requests==2.31.0
-anyio==3.7.1  # Versione compatibile con fastapi 0.104.1
-websockets==12.0  # Versione compatibile con realtime (supabase)
+# NOTA: anyio e websockets sono dipendenze transitive di httpx/uvicorn/supabase
+# NON specificare versioni esplicite - pip le risolverà automaticamente
 
 # Google Generative AI (nuova libreria)
 google-genai>=0.2.0
