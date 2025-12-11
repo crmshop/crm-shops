@@ -4,7 +4,8 @@ uvicorn[standard]>=0.24.0  # Compatibile con FastAPI 0.108.0+
 python-multipart==0.0.6
 
 # Database e Supabase
-supabase==2.0.0
+# Aggiornato a versione più recente per supportare httpx>=0.28.1 (richiesto da google-genai)
+supabase>=2.25.0
 psycopg[binary]>=3.1.0
 sqlalchemy==2.0.23
 
@@ -13,9 +14,10 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
 
-# HTTP Client - Versioni compatibili con supabase 2.0.0 e google-genai
+# HTTP Client - Versioni compatibili con supabase 2.25.0+ e google-genai
 # httpx è usato direttamente nel codice (gemini.py, banana_pro.py)
 # google-genai 1.33.0+ richiede httpx>=0.28.1,<1.0.0
+# supabase 2.25.0+ supporta httpx>=0.28.1
 # Usiamo un range flessibile per permettere a pip di risolvere conflitti
 httpx>=0.28.1,<1.0.0
 requests==2.31.0
