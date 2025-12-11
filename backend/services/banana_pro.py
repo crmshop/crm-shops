@@ -147,9 +147,17 @@ class BananaProService:
                 prompt = self._build_prompt(scenario)
             
             # Prepara prompt completo per generazione immagine
-            full_prompt = f"{prompt}\n\nCreate a realistic, high-quality image showing a person from the first photo wearing the clothing item shown in the second photo. The image should be professional photography style with proper lighting and composition."
+            # IMPORTANTE: Usa riferimenti espliciti alle immagini come nel notebook funzionante
+            # {image1} = foto cliente (prima immagine), {image2} = prodotto (seconda immagine)
+            full_prompt = (
+                f"Immagine professionale che ritrae la persona dalla foto {{image1}} con indossato "
+                f"l'articolo di abbigliamento come da immagine {{image2}}. "
+                f"{prompt} "
+                f"Il volto deve essere fedele alla foto così come la forma fisica. "
+                f"L'immagine deve essere di alta qualità, stile fotografia professionale con illuminazione e composizione appropriate."
+            )
             
-            logger.info(f"🚀 Generazione immagine con Gemini 3 Pro Image Preview")
+            logger.info(f"🚀 Generazione immagine con {self.model_name}")
             logger.info(f"   Prompt: {full_prompt[:200]}...")
             
             # Usa il formato corretto come nel notebook funzionante
@@ -162,9 +170,14 @@ class BananaProService:
                 customer_image = Image.open(io.BytesIO(customer_image_bytes))
                 product_image = Image.open(io.BytesIO(product_image_bytes))
                 
+                # IMPORTANTE: L'ordine delle immagini deve corrispondere ai riferimenti nel prompt
+                # {image1} = customer_image (prima immagine)
+                # {image2} = product_image (seconda immagine)
+                
                 # Genera immagine usando il formato corretto in base all'API disponibile
                 if self.use_new_api:
                     # Formato nuovo: google.genai.Client
+                    # Passa prompt con riferimenti espliciti + immagini nell'ordine corretto
                     response = self.client.models.generate_content(
                         model=self.model_name,
                         contents=[full_prompt, customer_image, product_image],
@@ -449,15 +462,15 @@ class BananaProService:
     
     def _build_prompt(self, scenario: Optional[str] = None) -> str:
         """Costruisci prompt base per generazione immagine"""
-        base_prompt = "A person wearing the selected clothing item, high quality, professional photography"
+        base_prompt = "Vista di tre quarti, posa naturale"
         
         scenario_prompts = {
-            "montagna": "in a mountain setting with snow and trees, winter atmosphere",
-            "spiaggia": "on a beautiful beach with sand and ocean, summer atmosphere",
-            "città": "in an urban city setting, modern architecture, street style",
-            "festa": "at a party or celebration, festive atmosphere, elegant setting",
-            "lavoro": "in a professional office environment, business casual",
-            "casual": "in a casual everyday setting, natural lighting"
+            "montagna": "in un ambiente montano con neve e alberi, atmosfera invernale",
+            "spiaggia": "su una bella spiaggia con sabbia e oceano, atmosfera estiva",
+            "città": "in un ambiente urbano cittadino, architettura moderna, stile street",
+            "festa": "a una festa o celebrazione, atmosfera festosa, ambiente elegante",
+            "lavoro": "in un ambiente d'ufficio professionale, business casual",
+            "casual": "in un ambiente casual quotidiano, illuminazione naturale"
         }
         
         if scenario and scenario.lower() in scenario_prompts:
