@@ -158,31 +158,53 @@ class BananaProService:
             if not prompt:
                 prompt = self._build_prompt(scenario)
             
-            # Costruisci riferimenti alle immagini nel prompt
-            # Foto cliente: {image1}, {image2}, {image3} (fino a 3)
-            # Prodotti: {image4}, {image5}, ..., {image13} (fino a 10)
+            # Costruisci prompt completo per generazione immagine
+            # IMPORTANTE: Usa riferimenti espliciti alle immagini come nel notebook funzionante
+            # Le immagini vengono passate nell'ordine: prima tutte le foto cliente, poi tutti i prodotti
+            # Il modello associa automaticamente le immagini ai placeholder {image1}, {image2}, etc.
+            
+            # Costruisci riferimenti alle immagini cliente
+            # IMPORTANTE: Usa singole graffe {image1} non doppie {{image1}}
+            # Le doppie graffe vengono interpretate come testo letterale, non come placeholder
             customer_refs = []
             for i in range(len(customer_images_bytes)):
-                customer_refs.append(f"{{image{i+1}}}")
+                # Costruisci "{image1}", "{image2}", etc. senza f-string per evitare escape
+                customer_refs.append("{" + f"image{i+1}" + "}")
             
+            # Costruisci riferimenti alle immagini prodotto
             product_refs = []
             start_idx = len(customer_images_bytes) + 1
             for i in range(len(product_images_bytes)):
-                product_refs.append(f"{{image{start_idx + i}}}")
+                product_refs.append("{" + f"image{start_idx + i}" + "}")
             
-            # Prepara prompt completo per generazione immagine
-            # IMPORTANTE: Usa riferimenti espliciti alle immagini come nel notebook funzionante
-            customer_refs_str = ", ".join(customer_refs)
-            product_refs_str = ", ".join(product_refs)
+            # Costruisci prompt seguendo il formato del notebook funzionante
+            # Nel notebook: "la persona {image1} con indossati i pantaloni come da immagine {image2}"
+            # Usa concatenazione invece di f-string per preservare le graffe singole
+            if len(customer_images_bytes) == 1:
+                customer_part = "la persona dalla foto " + customer_refs[0]
+            else:
+                customer_refs_str = ", ".join(customer_refs)
+                customer_part = "la persona dalle foto " + customer_refs_str
             
+            if len(product_images_bytes) == 1:
+                product_part = "l'articolo di abbigliamento come da immagine " + product_refs[0]
+            else:
+                product_refs_str = ", ".join(product_refs)
+                product_part = "gli articoli di abbigliamento come da immagini " + product_refs_str
+            
+            # Costruisci prompt completo usando concatenazione per preservare {image1}, {image2}, etc.
+            # Segue il formato del notebook funzionante che è più specifico e descrittivo
+            # Nel notebook: "Immagine professionale che ritrae la persona {image1} con indossati i pantaloni come da immagine {image2}"
             full_prompt = (
-                f"Immagine professionale che ritrae la persona dalle foto {customer_refs_str} con indossati "
-                f"gli articoli di abbigliamento come da immagini {product_refs_str}. "
-                f"{prompt} "
-                f"Il volto deve essere fedele alle foto così come la forma fisica. "
-                f"L'immagine deve essere di alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. "
-                f"Tutti gli articoli devono essere visibili e ben indossati dalla persona."
+                "Immagine professionale che ritrae " + customer_part + " con indossato " + product_part + ". "
+                + prompt + " "
+                + "Il volto deve essere fedele alla foto così come la forma fisica. "
+                + "L'immagine deve essere di alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. "
+                + "La persona deve essere chiaramente visibile e gli articoli devono essere ben indossati."
             )
+            
+            # Log del prompt completo per debug
+            logger.info(f"   📝 Prompt completo: {full_prompt}")
             
             logger.info(f"🚀 Generazione immagine con {self.model_name}")
             logger.info(f"   Foto cliente: {len(customer_images_bytes)} immagini")
@@ -200,14 +222,22 @@ class BananaProService:
                 product_images = [Image.open(io.BytesIO(img_bytes)) for img_bytes in product_images_bytes]
                 
                 # IMPORTANTE: L'ordine delle immagini deve corrispondere ai riferimenti nel prompt
-                # Prima tutte le foto cliente, poi tutti i prodotti
+                # Nel notebook: [prompt, image, image2, image3] dove:
+                # - image = foto cliente (diventa {image1})
+                # - image2 = primo prodotto (diventa {image2})
+                # - image3 = secondo prodotto (diventa {image3})
+                # Quindi: prima tutte le foto cliente, poi tutti i prodotti
                 all_images = customer_images + product_images
+                
+                logger.info(f"   📸 Immagini preparate: {len(customer_images)} foto cliente + {len(product_images)} prodotti = {len(all_images)} totali")
                 
                 # Genera immagine usando il formato corretto in base all'API disponibile
                 if self.use_new_api:
                     # Formato nuovo: google.genai.Client
                     # Passa prompt con riferimenti espliciti + tutte le immagini nell'ordine corretto
+                    # Formato: [prompt, image1, image2, ...] dove image1, image2 corrispondono a {image1}, {image2} nel prompt
                     contents = [full_prompt] + all_images
+                    logger.info(f"   🔄 Chiamata API con {len(contents)} elementi (1 prompt + {len(all_images)} immagini)")
                     response = self.client.models.generate_content(
                         model=self.model_name,
                         contents=contents,
@@ -215,6 +245,7 @@ class BananaProService:
                 else:
                     # Formato vecchio: google.generativeai.GenerativeModel
                     contents = [full_prompt] + all_images
+                    logger.info(f"   🔄 Chiamata API legacy con {len(contents)} elementi (1 prompt + {len(all_images)} immagini)")
                     response = self.model.generate_content(contents)
                 
                 return response
