@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: crm-shops-backend
+    runtime: python
+    plan: starter  # Puoi cambiare in standard/pro per più risorse
+    region: frankfurt  # Scegli la regione più vicina ai tuoi utenti
+    buildCommand: |
+      pip install --upgrade pip setuptools wheel &&
+      pip install --cache-dir ~/.cache/pip -r requirements.txt
+    startCommand: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: PIP_NO_CACHE_DIR
+        value: 0  # Abilita cache pip per build più veloci
+    healthCheckPath: /health
+    autoDeploy: true

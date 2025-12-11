@@ -11,7 +11,22 @@ Questa guida descrive come fare il deploy del progetto CRM Shops su Render.
 
 ## Deploy Backend su Render
 
-### 1. Crea Web Service
+### Opzione 1: Deploy Automatico con render.yaml (CONSIGLIATO - Più Veloce)
+
+Il progetto include un file `render.yaml` che configura automaticamente il deploy ottimizzato:
+
+1. Accedi a Render Dashboard
+2. Clicca **"New +"** → **"Blueprint"**
+3. Connetti il repository GitHub `crm-shops`
+4. Render rileverà automaticamente il file `render.yaml` e configurerà tutto
+
+**Vantaggi:**
+- ✅ Build più veloce grazie al caching di pip
+- ✅ Configurazione automatica
+- ✅ Health checks automatici
+- ✅ Workers multipli per migliori performance
+
+### Opzione 2: Deploy Manuale
 
 1. Accedi a Render Dashboard
 2. Clicca **"New +"** → **"Web Service"**
@@ -19,8 +34,9 @@ Questa guida descrive come fare il deploy del progetto CRM Shops su Render.
 4. Configura il servizio:
    - **Name**: `crm-shops-backend`
    - **Environment**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **Build Command**: `pip install --upgrade pip setuptools wheel && pip install --cache-dir ~/.cache/pip -r requirements.txt`
+   - **Start Command**: `python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 2`
+   - **Health Check Path**: `/health`
 
 ### 2. Configura Variabili d'Ambiente
 
@@ -119,12 +135,35 @@ Se preferisci deploy manuale:
 2. **Frontend**: Netlify, Vercel, o GitHub Pages
 3. **Database**: Mantieni Supabase (consigliato)
 
+## Ottimizzazioni Deploy
+
+### Per Deploy Più Veloce
+
+Il progetto include diverse ottimizzazioni:
+
+1. **Caching Pip**: Il build command usa `--cache-dir ~/.cache/pip` per cacheare le dipendenze
+2. **Workers Multipli**: Uvicorn usa 2 workers per migliori performance
+3. **Health Checks**: Endpoint `/health` per monitoraggio automatico
+4. **Script Ottimizzato**: `start_render.sh` semplificato per avvio più veloce
+
+### Tempi di Deploy Attesi
+
+- **Primo Deploy**: ~5-8 minuti (installazione completa dipendenze)
+- **Deploy Successivi**: ~2-4 minuti (con cache pip attiva)
+- **Hot Reload**: ~30-60 secondi (solo riavvio servizio)
+
 ## Troubleshooting
 
 ### Backend non si avvia
 - Verifica variabili d'ambiente
 - Controlla i log su Render
 - Verifica che il comando start sia corretto
+- Assicurati che Python 3.11 sia selezionato
+
+### Deploy troppo lento
+- Verifica che il caching pip sia attivo (`PIP_NO_CACHE_DIR=0`)
+- Controlla che non ci siano dipendenze pesanti non necessarie
+- Considera di aggiornare al piano Standard per più risorse
 
 ### CORS errors
 - Verifica ALLOWED_ORIGINS nel backend
