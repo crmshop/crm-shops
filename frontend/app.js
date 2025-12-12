@@ -570,12 +570,15 @@ router.addRoute('/customers', async () => {
     
     // Gli script sono già caricati in index.html
     // Attendi che il DOM sia pronto e che la funzione sia disponibile
-    function tryLoadCustomers(retries = 25) {
+    function tryLoadCustomers(retries = 50) {
         const container = document.getElementById('customers-list');
         const hasFunction = typeof window.loadCustomers === 'function';
+        const hasEditFunction = typeof window.editCustomer === 'function';
+        const hasUploadFunction = typeof window.uploadCustomerPhoto === 'function';
         const isInitialized = window.customersPageInitialized === true;
         
-        if (hasFunction && container && isInitialized) {
+        // Verifica che tutte le funzioni necessarie siano disponibili
+        if (hasFunction && hasEditFunction && hasUploadFunction && container && isInitialized) {
             try {
                 window.loadCustomers();
                 return; // Successo, esci
@@ -590,41 +593,35 @@ router.addRoute('/customers', async () => {
         
         // Se non è ancora pronto, riprova
         if (retries > 0) {
-            setTimeout(() => tryLoadCustomers(retries - 1), 100);
+            requestAnimationFrame(() => {
+                setTimeout(() => tryLoadCustomers(retries - 1), 100);
+            });
         } else {
-            // Fallback: prova a chiamare direttamente l'API se la funzione non è disponibile
-            console.warn('loadCustomers non disponibile, provo caricamento diretto');
+            // Fallback: mostra un messaggio e prova a ricaricare dopo un breve delay
+            console.warn('⚠️ Funzioni clienti non ancora disponibili dopo tutti i tentativi');
             const container = document.getElementById('customers-list');
             if (container) {
-                // Carica direttamente i clienti usando l'API
-                (async () => {
-                    try {
-                        const data = await apiCall('/api/customers/');
-                        const customers = data.customers || data || [];
-                        if (customers.length === 0) {
-                            container.innerHTML = '<p class="empty-state">Nessun cliente trovato. Crea il primo cliente!</p>';
-                        } else {
-                            container.innerHTML = customers.map(c => `
-                                <div class="customer-card">
-                                    <h3>${c.full_name || c.email}</h3>
-                                    <p>${c.email}</p>
-                                    ${c.phone ? `<p>Tel: ${c.phone}</p>` : ''}
-                                    <div class="customer-actions">
-                                        <button onclick="editCustomer('${c.id}')" class="btn btn-small">Modifica</button>
-                                        <button onclick="viewCustomerPhotos('${c.id}')" class="btn btn-small">Foto</button>
-                                    </div>
-                                </div>
-                            `).join('');
-                        }
-                    } catch (error) {
+                container.innerHTML = `
+                    <div class="loading">
+                        <p>Caricamento in corso...</p>
+                        <p><small>Se il problema persiste, ricarica la pagina</small></p>
+                    </div>
+                `;
+                // Ultimo tentativo dopo un breve delay
+                setTimeout(() => {
+                    if (typeof window.loadCustomers === 'function' && 
+                        typeof window.editCustomer === 'function' && 
+                        typeof window.uploadCustomerPhoto === 'function') {
+                        window.loadCustomers();
+                    } else {
                         container.innerHTML = `
                             <div class="error">
-                                <p>Errore nel caricamento clienti: ${error.message}</p>
+                                <p>Errore: le funzioni di gestione clienti non sono disponibili.</p>
                                 <button class="btn btn-primary" onclick="location.reload()">Ricarica Pagina</button>
                             </div>
                         `;
                     }
-                })();
+                }, 500);
             }
         }
     }
