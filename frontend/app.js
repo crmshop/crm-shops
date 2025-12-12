@@ -569,70 +569,39 @@ router.addRoute('/customers', async () => {
     `;
     
     // Gli script sono già caricati in index.html
-    // Attendi che il DOM sia pronto e che la funzione sia disponibile
-    function tryLoadCustomers(retries = 50) {
-        const container = document.getElementById('customers-list');
-        const hasFunction = typeof window.loadCustomers === 'function';
-        const hasEditFunction = typeof window.editCustomer === 'function';
-        const hasUploadFunction = typeof window.uploadCustomerPhoto === 'function';
-        const isInitialized = window.customersPageInitialized === true;
-        
-        // Verifica che tutte le funzioni necessarie siano disponibili
-        if (hasFunction && hasEditFunction && hasUploadFunction && container && isInitialized) {
+    // Usa lo stesso approccio semplice di /products
+    setTimeout(() => {
+        if (typeof window.loadCustomers === 'function') {
             try {
                 window.loadCustomers();
-                return; // Successo, esci
             } catch (error) {
                 console.error('Errore nel caricamento clienti:', error);
+                const container = document.getElementById('customers-list');
                 if (container) {
                     container.innerHTML = `<p class="error">Errore nel caricamento clienti: ${error.message}</p>`;
                 }
-                return; // Errore, esci
             }
-        }
-        
-        // Se non è ancora pronto, riprova
-        if (retries > 0) {
-            requestAnimationFrame(() => {
-                setTimeout(() => tryLoadCustomers(retries - 1), 100);
-            });
         } else {
-            // Fallback: mostra un messaggio e prova a ricaricare dopo un breve delay
-            console.warn('⚠️ Funzioni clienti non ancora disponibili dopo tutti i tentativi');
+            console.error('⚠️ loadCustomers non disponibile');
+            console.log('🔍 Verifica funzioni disponibili:', {
+                loadCustomers: typeof window.loadCustomers,
+                editCustomer: typeof window.editCustomer,
+                uploadCustomerPhoto: typeof window.uploadCustomerPhoto,
+                viewCustomerPhotos: typeof window.viewCustomerPhotos,
+                customersPageInitialized: window.customersPageInitialized
+            });
             const container = document.getElementById('customers-list');
             if (container) {
                 container.innerHTML = `
-                    <div class="loading">
-                        <p>Caricamento in corso...</p>
-                        <p><small>Se il problema persiste, ricarica la pagina</small></p>
+                    <div class="error">
+                        <p>Errore: le funzioni di gestione clienti non sono disponibili.</p>
+                        <p><small>Verifica la console per dettagli</small></p>
+                        <button class="btn btn-primary" onclick="location.reload()">Ricarica Pagina</button>
                     </div>
                 `;
-                // Ultimo tentativo dopo un breve delay
-                setTimeout(() => {
-                    if (typeof window.loadCustomers === 'function' && 
-                        typeof window.editCustomer === 'function' && 
-                        typeof window.uploadCustomerPhoto === 'function') {
-                        window.loadCustomers();
-                    } else {
-                        container.innerHTML = `
-                            <div class="error">
-                                <p>Errore: le funzioni di gestione clienti non sono disponibili.</p>
-                                <button class="btn btn-primary" onclick="location.reload()">Ricarica Pagina</button>
-                            </div>
-                        `;
-                    }
-                }, 500);
             }
         }
-    }
-    
-    // Avvia il tentativo di caricamento dopo che il DOM è stato aggiornato
-    // Usa un doppio setTimeout per assicurarsi che gli script siano caricati
-    setTimeout(() => {
-        requestAnimationFrame(() => {
-            tryLoadCustomers();
-        });
-    }, 300);
+    }, 200);
 });
 
 // Route: Scenario Prompts

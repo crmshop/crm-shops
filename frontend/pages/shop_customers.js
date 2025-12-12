@@ -3,10 +3,7 @@
 (function() {
     'use strict';
     
-    // Verifica se già inizializzato
-    if (window.customersPageInitialized) {
-        return;
-    }
+    // Marca come inizializzato (per debug)
     window.customersPageInitialized = true;
     
 let currentCustomers = [];
@@ -559,16 +556,30 @@ function closeUploadCustomerPhotoModal() {
 }
 
 // Esporta funzioni per uso globale
-window.showCreateCustomerForm = showCreateCustomerForm;
-window.editCustomer = editCustomer;
-window.uploadCustomerPhoto = uploadCustomerPhoto;
-window.viewCustomerPhotos = viewCustomerPhotos;
-window.deleteCustomerPhoto = deleteCustomerPhoto;
-window.closeCustomerModal = closeCustomerModal;
-window.closeEditCustomerModal = closeEditCustomerModal;
-window.closeUploadCustomerPhotoModal = closeUploadCustomerPhotoModal;
-window.closeViewPhotosModal = closeViewPhotosModal;
-window.loadCustomers = loadCustomers;
+// Usa try-catch per assicurarsi che le funzioni vengano sempre esportate
+try {
+    window.showCreateCustomerForm = showCreateCustomerForm;
+    window.editCustomer = editCustomer;
+    window.uploadCustomerPhoto = uploadCustomerPhoto;
+    window.viewCustomerPhotos = viewCustomerPhotos;
+    window.deleteCustomerPhoto = deleteCustomerPhoto;
+    window.closeCustomerModal = closeCustomerModal;
+    window.closeEditCustomerModal = closeEditCustomerModal;
+    window.closeUploadCustomerPhotoModal = closeUploadCustomerPhotoModal;
+    window.closeViewPhotosModal = closeViewPhotosModal;
+    window.loadCustomers = loadCustomers;
+    
+    console.log('✅ Funzioni clienti esportate correttamente');
+} catch (error) {
+    console.error('❌ Errore nell\'esportazione funzioni clienti:', error);
+    // Prova comunque a esportare le funzioni se sono definite
+    if (typeof showCreateCustomerForm !== 'undefined') window.showCreateCustomerForm = showCreateCustomerForm;
+    if (typeof editCustomer !== 'undefined') window.editCustomer = editCustomer;
+    if (typeof uploadCustomerPhoto !== 'undefined') window.uploadCustomerPhoto = uploadCustomerPhoto;
+    if (typeof viewCustomerPhotos !== 'undefined') window.viewCustomerPhotos = viewCustomerPhotos;
+    if (typeof deleteCustomerPhoto !== 'undefined') window.deleteCustomerPhoto = deleteCustomerPhoto;
+    if (typeof loadCustomers !== 'undefined') window.loadCustomers = loadCustomers;
+}
 
 })(); // Fine IIFE
 
