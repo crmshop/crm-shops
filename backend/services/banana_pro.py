@@ -353,6 +353,16 @@ class BananaProService:
                 if len(customer_images) == 0:
                     raise ValueError("Nessuna foto cliente disponibile per la generazione!")
                 
+                # Verifica che ci siano immagini prodotto
+                if len(product_images) == 0:
+                    raise ValueError("Nessuna immagine prodotto disponibile per la generazione!")
+                
+                # Log dimensioni immagini per debug
+                for idx, img in enumerate(customer_images, 1):
+                    logger.info(f"      Foto cliente {idx}: {img.size if hasattr(img, 'size') else 'N/A'}")
+                for idx, img in enumerate(product_images, 1):
+                    logger.info(f"      Prodotto {idx}: {img.size if hasattr(img, 'size') else 'N/A'}")
+                
                 # Genera immagine usando il formato corretto in base all'API disponibile
                 if self.use_new_api:
                     # Formato nuovo: google.genai.Client

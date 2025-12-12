@@ -588,29 +588,65 @@
             generatedImagesForOutfit = generatedImages; // Salva per uso futuro
             const imageCount = response.count || generatedImages.length;
             
+            console.log(`📥 Ricevute ${imageCount} immagini dal server`);
+            console.log(`   Immagini ricevute:`, generatedImages);
+            
+            if (imageCount !== totalImages) {
+                console.warn(`⚠️ Attenzione: erano previste ${totalImages} immagini ma ne sono state generate ${imageCount}`);
+            }
+            
             // Aggiorna progresso man mano che le immagini arrivano
+            updateProgress(30, totalImages, `Ricevute ${imageCount} immagini, preparazione visualizzazione...`, progressBar, progressText, progressPercentage);
+            
             for (let i = 0; i < generatedImages.length; i++) {
                 const img = generatedImages[i];
-                const progress = 30 + ((i + 1) / generatedImages.length) * 60; // Da 30% a 90%
-                updateProgress(progress, totalImages, `Immagine ${i + 1}/${generatedImages.length} generata`, progressBar, progressText, progressPercentage);
+                const progress = 35 + ((i + 1) / generatedImages.length) * 55; // Da 35% a 90%
+                const scenarioName = img.scenario ? img.scenario.substring(0, 40) : `Scenario ${i + 1}`;
+                updateProgress(progress, totalImages, `Immagine ${i + 1}/${generatedImages.length} generata e salvata: ${scenarioName}`, progressBar, progressText, progressPercentage);
                 
-                // Aggiungi immagine al preview
+                // Aggiungi immagine al preview con stato di caricamento
                 const imgDiv = document.createElement('div');
                 imgDiv.style.textAlign = 'center';
+                imgDiv.style.position = 'relative';
                 imgDiv.innerHTML = `
-                    <img src="${img.image_url}" alt="Outfit generato ${i + 1}" 
-                         style="max-width: 100%; border-radius: 8px; border: 2px solid #4CAF50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    ${img.scenario ? `<p style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;">${img.scenario.substring(0, 30)}...</p>` : ''}
-                    <p style="font-size: 0.7rem; color: #4CAF50; margin-top: 0.25rem;">✓ Completata</p>
+                    <div style="position: relative; display: inline-block;">
+                        <div class="image-loading-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                            <div style="text-align: center;">
+                                <div class="spinner" style="border: 3px solid #f3f3f3; border-top: 3px solid #4CAF50; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                                <p style="font-size: 0.75rem; color: #666; margin-top: 0.5rem;">Caricamento...</p>
+                            </div>
+                        </div>
+                        <img src="${img.image_url}" alt="Outfit generato ${i + 1}" 
+                             style="max-width: 100%; border-radius: 8px; border: 2px solid #4CAF50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                             onload="this.parentElement.querySelector('.image-loading-overlay').style.display='none'; this.parentElement.querySelector('.image-status').style.display='block';"
+                             onerror="this.parentElement.querySelector('.image-loading-overlay').innerHTML='<p style=\\'color:red;\\'>Errore caricamento</p>';">
+                        <div class="image-status" style="display: none;">
+                            ${img.scenario ? `<p style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;">${scenarioName}</p>` : ''}
+                            <p style="font-size: 0.7rem; color: #4CAF50; margin-top: 0.25rem; font-weight: bold;">✓ Generata e salvata</p>
+                        </div>
+                    </div>
                 `;
                 previewProgress.appendChild(imgDiv);
                 
                 // Piccolo delay per animazione
-                await new Promise(resolve => setTimeout(resolve, 300));
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
             
             // Completa progresso
-            updateProgress(100, totalImages, `Tutte le ${imageCount} immagini generate con successo!`, progressBar, progressText, progressPercentage);
+            updateProgress(100, totalImages, `✅ Tutte le ${imageCount} immagini generate e salvate con successo!`, progressBar, progressText, progressPercentage);
+            
+            // Aggiungi stile CSS per spinner se non esiste
+            if (!document.getElementById('spinner-style')) {
+                const style = document.createElement('style');
+                style.id = 'spinner-style';
+                style.textContent = `
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
             
             if (window.showSuccess) {
                 if (imageCount > 1) {

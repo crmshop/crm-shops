@@ -251,6 +251,14 @@ async def generate_outfit_image(
             )
         
         logger.info(f"📸 Foto cliente recuperate: {len(customer_photo_urls)}")
+        logger.info(f"   URL foto cliente: {customer_photo_urls}")
+        
+        # Verifica che le foto cliente siano valide
+        if not customer_photo_urls or len(customer_photo_urls) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nessuna foto cliente valida trovata. Assicurati che il cliente abbia almeno una foto caricata."
+            )
         
         # Recupera prodotti
         products_response = supabase.table("products").select("*").in_("id", [str(pid) for pid in request.product_ids]).execute()
@@ -307,13 +315,18 @@ async def generate_outfit_image(
         
         # Recupera dettagli scenari se outfit_id è presente o se scenarios è fornito
         scenario_details = []
+        logger.info(f"🔍 Recupero scenari: outfit_id={request.outfit_id}, scenarios forniti={len(request.scenarios) if request.scenarios else 0}")
+        
         if request.outfit_id:
             # Recupera scenari dall'outfit
+            logger.info(f"📋 Recupero scenari dall'outfit {request.outfit_id}")
             outfit_result = supabase.table("outfits").select(
                 "outfit_scenarios(scenario_prompt_id, custom_text, scenario_prompts(*))"
             ).eq("id", str(request.outfit_id)).execute()
             
+            logger.info(f"   Risultato outfit: {len(outfit_result.data) if outfit_result.data else 0} outfit trovati")
             if outfit_result.data and outfit_result.data[0].get("outfit_scenarios"):
+                logger.info(f"   Scenari trovati nell'outfit: {len(outfit_result.data[0]['outfit_scenarios'])}")
                 for os in outfit_result.data[0]["outfit_scenarios"]:
                     scenario_prompt = os.get("scenario_prompts", {})
                     scenario_details.append({
@@ -324,22 +337,36 @@ async def generate_outfit_image(
                         "background": scenario_prompt.get("background"),
                         "custom_text": os.get("custom_text")
                     })
-        elif request.scenarios:
+                    logger.info(f"   ✅ Scenario aggiunto: {scenario_prompt.get('description', 'N/A')}")
+            else:
+                logger.warning(f"   ⚠️ Nessuno scenario trovato nell'outfit")
+        elif request.scenarios and len(request.scenarios) > 0:
             # Recupera dettagli scenari dalla lista fornita
+            logger.info(f"📋 Recupero scenari dalla richiesta: {len(request.scenarios)} scenari")
             scenario_ids = [str(s.scenario_prompt_id) for s in request.scenarios]
+            logger.info(f"   ID scenari: {scenario_ids}")
             scenarios_result = supabase.table("scenario_prompts").select("*").in_("id", scenario_ids).execute()
+            logger.info(f"   Scenari trovati nel database: {len(scenarios_result.data)}")
             scenarios_dict = {s["id"]: s for s in scenarios_result.data}
             
             for scenario_request in request.scenarios:
                 scenario_prompt = scenarios_dict.get(str(scenario_request.scenario_prompt_id), {})
-                scenario_details.append({
-                    "description": scenario_prompt.get("description", ""),
-                    "position": scenario_prompt.get("position"),
-                    "environment": scenario_prompt.get("environment"),
-                    "lighting": scenario_prompt.get("lighting"),
-                    "background": scenario_prompt.get("background"),
-                    "custom_text": scenario_request.custom_text
-                })
+                if scenario_prompt:
+                    scenario_details.append({
+                        "description": scenario_prompt.get("description", ""),
+                        "position": scenario_prompt.get("position"),
+                        "environment": scenario_prompt.get("environment"),
+                        "lighting": scenario_prompt.get("lighting"),
+                        "background": scenario_prompt.get("background"),
+                        "custom_text": scenario_request.custom_text
+                    })
+                    logger.info(f"   ✅ Scenario aggiunto: {scenario_prompt.get('description', 'N/A')} (custom_text: {scenario_request.custom_text})")
+                else:
+                    logger.warning(f"   ⚠️ Scenario {scenario_request.scenario_prompt_id} non trovato nel database")
+        else:
+            logger.info(f"📋 Nessuno scenario fornito, genererò una sola immagine (default)")
+        
+        logger.info(f"📋 Totale scenari da generare: {len(scenario_details)}")
         
         # Verifica che gli URL delle immagini prodotto siano validi prima di iniziare la generazione
         if not product_image_urls or len(product_image_urls) == 0:
@@ -372,10 +399,20 @@ async def generate_outfit_image(
             scenarios_to_generate = scenarios_to_generate[:3]
             logger.warning(f"⚠️  Più di 3 scenari forniti, genero solo i primi 3")
         
+        logger.info(f"📋 Scenari da generare: {len(scenarios_to_generate)}")
+        for idx, sc in enumerate(scenarios_to_generate, 1):
+            if sc:
+                logger.info(f"   Scenario {idx}: {sc.get('description', 'N/A')} - {sc.get('environment', 'N/A')}")
+            else:
+                logger.info(f"   Scenario {idx}: Default (nessuno scenario)")
+        
         product_names = [p.get("name", "") for p in products]
         product_categories = [p.get("category", "") for p in products]
         
-        logger.info(f"🎨 Inizio generazione {len(scenarios_to_generate)} immagine/i con {len(product_image_urls)} immagini prodotto")
+        logger.info(f"🎨 Inizio generazione {len(scenarios_to_generate)} immagine/i")
+        logger.info(f"   📸 Foto cliente: {len(customer_photo_urls)} immagini")
+        logger.info(f"   🛍️ Immagini prodotto: {len(product_image_urls)} immagini")
+        logger.info(f"   📦 Prodotti: {', '.join(product_names)}")
         
         generated_images = []
         errors = []
@@ -399,14 +436,23 @@ async def generate_outfit_image(
                     if product_names:
                         prompt += f" Articoli indossati: {', '.join(product_names)}."
                 
-                logger.info(f"🎨 Generazione immagine {idx + 1}/{len(scenarios_to_generate)} per scenario: {scenario_detail.get('description', 'Nessuno') if scenario_detail else 'Default'}")
-                logger.info(f"   📸 Foto cliente da usare: {len(customer_photo_urls)} immagini")
-                logger.info(f"   🛍️ Immagini prodotto da usare: {len(product_image_urls)} immagini")
-                logger.info(f"   📝 Prompt: {prompt[:200]}...")
+                scenario_name = scenario_detail.get('description', 'Nessuno') if scenario_detail else 'Default'
+                logger.info(f"🎨 Generazione immagine {idx + 1}/{len(scenarios_to_generate)} per scenario: {scenario_name}")
+                logger.info(f"   📸 Foto cliente da usare: {len(customer_photo_urls)} immagini - URL: {customer_photo_urls}")
+                logger.info(f"   🛍️ Immagini prodotto da usare: {len(product_image_urls)} immagini - URL: {product_image_urls}")
+                logger.info(f"   📝 Prompt: {prompt[:300]}...")
                 
                 # Verifica che le foto cliente siano valide
                 if not customer_photo_urls or len(customer_photo_urls) == 0:
                     error_msg = f"Nessuna foto cliente valida per la generazione immagine {idx + 1}"
+                    logger.error(f"❌ {error_msg}")
+                    errors.append(error_msg)
+                    continue
+                
+                # Verifica che le foto cliente siano URL validi
+                invalid_customer_urls = [url for url in customer_photo_urls if not url or not isinstance(url, str) or not url.strip() or not (url.startswith("http://") or url.startswith("https://"))]
+                if invalid_customer_urls:
+                    error_msg = f"URL foto cliente non validi per la generazione immagine {idx + 1}: {invalid_customer_urls}"
                     logger.error(f"❌ {error_msg}")
                     errors.append(error_msg)
                     continue
