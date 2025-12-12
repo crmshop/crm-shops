@@ -2,7 +2,7 @@
 Servizio principale per l'integrazione con AI generativa (Banana Pro, Google Gemini)
 """
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from backend.services.banana_pro import banana_pro_service
 from backend.services.gemini import gemini_service
 
