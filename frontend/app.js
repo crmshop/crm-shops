@@ -570,11 +570,16 @@ router.addRoute('/customers', async () => {
     
     // Gli script sono già caricati in index.html
     setTimeout(() => {
-        if (window.loadCustomers) {
-            window.loadCustomers();
-        } else {
-            console.error('loadCustomers non disponibile');
+        function tryLoadCustomers(retries = 5) {
+            if (window.loadCustomers && document.getElementById('customers-list')) {
+                window.loadCustomers();
+            } else if (retries > 0) {
+                setTimeout(() => tryLoadCustomers(retries - 1), 200);
+            } else {
+                console.warn('loadCustomers non disponibile o container non trovato');
+            }
         }
+        tryLoadCustomers();
     }, 100);
 });
 

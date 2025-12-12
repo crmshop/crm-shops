@@ -362,14 +362,22 @@
                 updateSelectedProducts();
             };
             
+            // Salva riferimento alle variabili per accesso globale
+            window._outfitFormData = {
+                selectedProducts: selectedProducts,
+                selectedScenarios: selectedScenarios,
+                updateSelectedProducts: updateSelectedProducts,
+                updateSelectedScenarios: updateSelectedScenarios
+            };
+            
             document.getElementById('outfit-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                await createOutfit(selectedProducts);
+                await createOutfit(selectedProducts, selectedScenarios);
             });
         });
     }
 
-    async function createOutfit(selectedProducts) {
+    async function createOutfit(selectedProducts, selectedScenarios = []) {
         try {
             if (selectedProducts.length === 0) {
                 if (window.showError) {
@@ -387,6 +395,20 @@
                     alert('Puoi selezionare massimo 10 prodotti');
                 }
                 return;
+            }
+            
+            // Se selectedScenarios non è fornito, recuperalo dal DOM
+            if (!selectedScenarios || selectedScenarios.length === 0) {
+                selectedScenarios = [];
+                const checkedScenarios = document.querySelectorAll('.scenario-check:checked');
+                checkedScenarios.forEach(checkbox => {
+                    const scenarioId = checkbox.value;
+                    const customTextArea = document.querySelector(`.scenario-custom-text[data-scenario-id="${scenarioId}"]`);
+                    selectedScenarios.push({
+                        scenario_prompt_id: scenarioId,
+                        custom_text: customTextArea ? customTextArea.value.trim() || null : null
+                    });
+                });
             }
             
             const outfitData = {
@@ -422,19 +444,25 @@
     }
 
     async function generateOutfitImage() {
-        const shopId = document.getElementById('outfit-shop').value;
-        const customerId = document.getElementById('outfit-customer').value;
+        const shopId = document.getElementById('outfit-shop')?.value;
+        const customerId = document.getElementById('outfit-customer')?.value;
         const selectedProducts = Array.from(document.querySelectorAll('.product-check:checked')).map(cb => ({
             id: cb.value,
             name: cb.dataset.name,
             image: cb.dataset.image
         }));
         
-        // Recupera scenari selezionati con testo libero
-        const selectedScenariosForGeneration = selectedScenarios.map(s => ({
-            scenario_prompt_id: s.scenario_prompt_id,
-            custom_text: s.custom_text || null
-        }));
+        // Recupera scenari selezionati con testo libero dal DOM
+        const selectedScenariosForGeneration = [];
+        const checkedScenarios = document.querySelectorAll('.scenario-check:checked');
+        checkedScenarios.forEach(checkbox => {
+            const scenarioId = checkbox.value;
+            const customTextArea = document.querySelector(`.scenario-custom-text[data-scenario-id="${scenarioId}"]`);
+            selectedScenariosForGeneration.push({
+                scenario_prompt_id: scenarioId,
+                custom_text: customTextArea ? customTextArea.value.trim() || null : null
+            });
+        });
         
         if (!shopId || !customerId) {
             if (window.showError) {
@@ -460,14 +488,20 @@
             }
             
             // Chiama API per generare immagine con scenari
+            const requestBody = {
+                shop_id: shopId,
+                customer_id: customerId,
+                product_ids: selectedProducts.map(p => p.id)
+            };
+            
+            // Aggiungi scenari solo se ce ne sono
+            if (selectedScenariosForGeneration.length > 0) {
+                requestBody.scenarios = selectedScenariosForGeneration;
+            }
+            
             const response = await window.apiCall('/api/generated-images/generate-outfit', {
                 method: 'POST',
-                body: JSON.stringify({
-                    shop_id: shopId,
-                    customer_id: customerId,
-                    product_ids: selectedProducts.map(p => p.id),
-                    scenarios: selectedScenariosForGeneration.length > 0 ? selectedScenariosForGeneration : undefined
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (window.showSuccess) {
