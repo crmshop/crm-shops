@@ -46,7 +46,7 @@ class CustomerResponse(CustomerBase):
         from_attributes = True
 
 
-@router.get("/", response_model=List[CustomerResponse])
+@router.get("/")
 async def list_customers(
     shop_id: Optional[UUID] = None,
     current_user: dict = Depends(get_current_shop_owner)
@@ -69,7 +69,10 @@ async def list_customers(
         shop_ids = [shop['id'] for shop in shops_response.data]
         
         if not shop_ids:
-            return []
+            return {
+                "customers": [],
+                "count": 0
+            }
         
         # I clienti creati dal negoziante sono nella tabella shop_customers
         # Non nella tabella users (quelli sono clienti esterni con account)
@@ -90,7 +93,10 @@ async def list_customers(
         customers_response = query.execute()
         
         if not customers_response.data:
-            return []
+            return {
+                "customers": [],
+                "count": 0
+            }
         
         # Converti i dati in CustomerResponse
         customers = []
@@ -110,7 +116,11 @@ async def list_customers(
             }
             customers.append(CustomerResponse.model_validate(customer_dict))
         
-        return customers
+        # Restituisci un oggetto con la chiave 'customers' per coerenza con altri endpoint
+        return {
+            "customers": [c.model_dump() for c in customers],
+            "count": len(customers)
+        }
         
     except Exception as e:
         logger.error(f"Errore nel listare i clienti: {e}")
