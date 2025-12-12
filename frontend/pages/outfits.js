@@ -504,21 +504,54 @@
                 body: JSON.stringify(requestBody)
             });
             
+            // Gestisci risposta con più immagini
+            const generatedImages = response.images || (response.image ? [response.image] : []);
+            const imageCount = response.count || generatedImages.length;
+            
             if (window.showSuccess) {
-                window.showSuccess('Immagine generata con successo!');
+                if (imageCount > 1) {
+                    window.showSuccess(`${imageCount} immagini generate con successo!`);
+                } else {
+                    window.showSuccess('Immagine generata con successo!');
+                }
             } else {
-                alert('Immagine generata con successo!');
+                if (imageCount > 1) {
+                    alert(`${imageCount} immagini generate con successo!`);
+                } else {
+                    alert('Immagine generata con successo!');
+                }
             }
             
-            // Mostra l'immagine generata
-            if (response.image_url) {
+            // Mostra le immagini generate
+            if (generatedImages.length > 0) {
+                // Rimuovi preview precedenti se esistono
+                const existingPreview = document.querySelector('.generated-images-preview-container');
+                if (existingPreview) {
+                    existingPreview.remove();
+                }
+                
                 const preview = document.createElement('div');
-                preview.className = 'generated-image-preview';
+                preview.className = 'generated-images-preview-container';
+                preview.style.marginTop = '1rem';
+                preview.style.padding = '1rem';
+                preview.style.border = '1px solid #ddd';
+                preview.style.borderRadius = '8px';
                 preview.innerHTML = `
-                    <h3>Immagine Generata</h3>
-                    <img src="${response.image_url}" alt="Outfit generato" style="max-width: 100%; border-radius: 8px;">
+                    <h3>Immagini Generate (${generatedImages.length})</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                        ${generatedImages.map((img, idx) => `
+                            <div style="text-align: center;">
+                                <img src="${img.image_url}" alt="Outfit generato ${idx + 1}" 
+                                     style="max-width: 100%; border-radius: 8px; border: 1px solid #ddd;">
+                                ${img.scenario ? `<p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">${img.scenario}</p>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
                 `;
-                document.getElementById('outfit-form').appendChild(preview);
+                const form = document.getElementById('outfit-form');
+                if (form) {
+                    form.appendChild(preview);
+                }
             }
         } catch (error) {
             if (window.showError) {
@@ -543,62 +576,316 @@
                 console.warn('Errore caricamento immagini generate:', error);
             }
             
+            // Carica negozi e prodotti per il form
+            const shopsData = await window.apiCall('/api/shops/');
+            const shops = shopsData.shops || [];
+            
             const modalHTML = `
                 <div class="modal" id="edit-outfit-modal" style="max-width: 900px;">
                     <div class="modal-content">
                         <span class="close" onclick="closeEditOutfitModal()">&times;</span>
                         <h2>Modifica Outfit: ${outfit.name || 'Senza nome'}</h2>
                         
-                        <div style="margin-bottom: 2rem;">
-                            <h3>Informazioni Outfit</h3>
-                            <p><strong>Prodotti:</strong> ${outfit.product_ids?.length || 0}</p>
-                            ${outfit.scenarios && outfit.scenarios.length > 0 ? `
-                                <p><strong>Scenari:</strong> ${outfit.scenarios.length}</p>
-                                <ul>
-                                    ${outfit.scenarios.map(s => `<li>Scenario ID: ${s.scenario_prompt_id}${s.custom_text ? ` - ${s.custom_text}` : ''}</li>`).join('')}
-                                </ul>
-                            ` : ''}
-                        </div>
-                        
-                        ${generatedImages.length > 0 ? `
-                            <div style="margin-bottom: 2rem;">
-                                <h3>Immagini Generate (${generatedImages.length})</h3>
-                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                                    ${generatedImages.map(img => `
-                                        <div class="generated-image-card">
-                                            <img src="${img.image_url}" alt="Immagine generata" class="generated-image-preview" 
-                                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'200\\'%3E%3Crect fill=\\'%23ddd\\' width=\\'200\\' height=\\'200\\'/%3E%3Ctext fill=\\'%23999\\' font-family=\\'sans-serif\\' font-size=\\'14\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\'%3EImmagine%3C/text%3E%3C/svg%3E'">
-                                            <div class="generated-image-info">
-                                                ${img.scenario ? `<p><strong>Scenario:</strong> ${img.scenario}</p>` : ''}
-                                                ${img.prompt_used ? `<p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">${img.prompt_used.substring(0, 100)}...</p>` : ''}
-                                                <p style="font-size: 0.8rem; color: #999; margin-top: 0.5rem;">
-                                                    ${new Date(img.generated_at).toLocaleDateString('it-IT')}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    `).join('')}
+                        <form id="edit-outfit-form">
+                            <input type="hidden" id="edit-outfit-id" value="${outfitId}">
+                            <input type="hidden" id="edit-outfit-shop-id" value="${outfit.shop_id}">
+                            <input type="hidden" id="edit-outfit-customer-id" value="${outfit.customer_id || outfit.user_id}">
+                            
+                            <div class="form-group">
+                                <label>Nome Outfit</label>
+                                <input type="text" id="edit-outfit-name" value="${outfit.name || ''}" placeholder="Es: Outfit Estate 2025">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Prodotti (max 10) *</label>
+                                <div id="edit-products-selection" class="products-selection">
+                                    <p class="info-text">Caricamento prodotti...</p>
                                 </div>
+                                <div id="edit-selected-products" class="selected-products"></div>
+                                <small>Selezionati: <span id="edit-selected-count">0</span>/10</small>
                             </div>
-                        ` : `
-                            <div style="margin-bottom: 2rem;">
-                                <p class="info-text">Nessuna immagine generata per questo outfit.</p>
-                                <p class="info-text">Usa il pulsante "Crea Immagine" durante la creazione dell'outfit per generare immagini.</p>
+                            
+                            <div class="form-group">
+                                <label>Scenari (max 3, opzionale)</label>
+                                <div id="edit-scenarios-selection" style="margin-bottom: 1rem;">
+                                    <p class="info-text">Caricamento scenari...</p>
+                                </div>
+                                <div id="edit-selected-scenarios"></div>
+                                <small>Selezionati: <span id="edit-selected-scenarios-count">0</span>/3</small>
                             </div>
-                        `}
-                        
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-secondary" onclick="closeEditOutfitModal()">Chiudi</button>
-                        </div>
+                            
+                            ${generatedImages.length > 0 ? `
+                                <div class="form-group">
+                                    <h3>Immagini Generate (${generatedImages.length})</h3>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                                        ${generatedImages.map(img => `
+                                            <div class="generated-image-card">
+                                                <img src="${img.image_url}" alt="Immagine generata" class="generated-image-preview" 
+                                                     style="max-width: 100%; border-radius: 8px; border: 1px solid #ddd;"
+                                                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'200\\'%3E%3Crect fill=\\'%23ddd\\' width=\\'200\\' height=\\'200\\'/%3E%3Ctext fill=\\'%23999\\' font-family=\\'sans-serif\\' font-size=\\'14\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\'%3EImmagine%3C/text%3E%3C/svg%3E'">
+                                                <div class="generated-image-info" style="margin-top: 0.5rem;">
+                                                    ${img.scenario ? `<p style="font-size: 0.85rem;"><strong>Scenario:</strong> ${img.scenario}</p>` : ''}
+                                                    <p style="font-size: 0.8rem; color: #999; margin-top: 0.25rem;">
+                                                        ${new Date(img.generated_at).toLocaleDateString('it-IT')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="form-group">
+                                    <p class="info-text">Nessuna immagine generata per questo outfit.</p>
+                                </div>
+                            `}
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="closeEditOutfitModal()">Annulla</button>
+                                <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             `;
             
             document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // Carica prodotti e scenari per il negozio
+            const shopId = outfit.shop_id;
+            await loadProductsAndScenariosForEdit(shopId, outfit);
+            
+            // Aggiungi listener per il form
+            document.getElementById('edit-outfit-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await updateOutfit(outfitId);
+            });
         } catch (error) {
             if (window.showError) {
                 window.showError('Errore nel caricamento outfit: ' + error.message);
             } else {
                 alert('Errore nel caricamento outfit: ' + error.message);
+            }
+        }
+    }
+    
+    async function loadProductsAndScenariosForEdit(shopId, outfit) {
+        const productsContainer = document.getElementById('edit-products-selection');
+        const selectedContainer = document.getElementById('edit-selected-products');
+        const selectedCountSpan = document.getElementById('edit-selected-count');
+        const scenariosContainer = document.getElementById('edit-scenarios-selection');
+        const selectedScenariosContainer = document.getElementById('edit-selected-scenarios');
+        const selectedScenariosCountSpan = document.getElementById('edit-selected-scenarios-count');
+        
+        let selectedProducts = [];
+        let selectedScenarios = [];
+        
+        // Carica prodotti
+        const products = await loadProductsForShop(shopId);
+        if (products.length === 0) {
+            productsContainer.innerHTML = '<p class="info-text">Nessun prodotto disponibile</p>';
+        } else {
+            productsContainer.innerHTML = products.map(p => `
+                <div class="product-checkbox">
+                    <label>
+                        <input type="checkbox" class="product-check-edit" value="${p.id}" data-name="${p.name}" data-image="${p.image_url || ''}" ${outfit.product_ids && outfit.product_ids.includes(p.id) ? 'checked' : ''}>
+                        <span>${p.name} (${p.category})</span>
+                        ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" class="product-thumb">` : ''}
+                    </label>
+                </div>
+            `).join('');
+            
+            // Inizializza prodotti selezionati
+            selectedProducts = products.filter(p => outfit.product_ids && outfit.product_ids.includes(p.id)).map(p => ({
+                id: p.id,
+                name: p.name,
+                image: p.image_url || ''
+            }));
+            
+            // Aggiungi listener per checkbox prodotti
+            document.querySelectorAll('.product-check-edit').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const productId = this.value;
+                    if (this.checked) {
+                        if (selectedProducts.length >= 10) {
+                            this.checked = false;
+                            if (window.showError) {
+                                window.showError('Puoi selezionare massimo 10 prodotti');
+                            }
+                            return;
+                        }
+                        selectedProducts.push({
+                            id: productId,
+                            name: this.dataset.name,
+                            image: this.dataset.image
+                        });
+                    } else {
+                        selectedProducts = selectedProducts.filter(p => p.id !== productId);
+                    }
+                    updateSelectedProductsEdit();
+                });
+            });
+        }
+        
+        // Carica scenari
+        try {
+            const scenariosData = await window.apiCall(`/api/scenario-prompts/?shop_id=${shopId}`);
+            const scenarios = scenariosData.scenarios || [];
+            if (scenarios.length === 0) {
+                scenariosContainer.innerHTML = '<p class="info-text">Nessuno scenario disponibile</p>';
+            } else {
+                scenariosContainer.innerHTML = scenarios.map(s => `
+                    <div class="scenario-checkbox" style="margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" class="scenario-check-edit" value="${s.id}" data-name="${s.name}" ${outfit.scenarios && outfit.scenarios.some(sc => sc.scenario_prompt_id === s.id) ? 'checked' : ''}>
+                            <div style="flex: 1;">
+                                <strong>${s.name}</strong>
+                                ${s.description ? `<p style="margin: 0.25rem 0; font-size: 0.9rem; color: #666;">${s.description}</p>` : ''}
+                            </div>
+                        </label>
+                        ${outfit.scenarios && outfit.scenarios.some(sc => sc.scenario_prompt_id === s.id) ? `
+                            <textarea class="scenario-custom-text-edit" data-scenario-id="${s.id}" 
+                                      placeholder="Testo libero per questo scenario..." 
+                                      style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">${outfit.scenarios.find(sc => sc.scenario_prompt_id === s.id)?.custom_text || ''}</textarea>
+                        ` : `
+                            <textarea class="scenario-custom-text-edit" data-scenario-id="${s.id}" 
+                                      placeholder="Testo libero per questo scenario..." 
+                                      style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; display: none;"></textarea>
+                        `}
+                    </div>
+                `).join('');
+                
+                // Inizializza scenari selezionati
+                selectedScenarios = outfit.scenarios ? outfit.scenarios.map(s => ({
+                    scenario_prompt_id: s.scenario_prompt_id,
+                    custom_text: s.custom_text || ''
+                })) : [];
+                
+                // Aggiungi listener per checkbox scenari
+                document.querySelectorAll('.scenario-check-edit').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const scenarioId = this.value;
+                        const textarea = document.querySelector(`.scenario-custom-text-edit[data-scenario-id="${scenarioId}"]`);
+                        if (this.checked) {
+                            if (selectedScenarios.length >= 3) {
+                                this.checked = false;
+                                if (window.showError) {
+                                    window.showError('Puoi selezionare massimo 3 scenari');
+                                }
+                                return;
+                            }
+                            selectedScenarios.push({
+                                scenario_prompt_id: scenarioId,
+                                custom_text: ''
+                            });
+                            if (textarea) textarea.style.display = 'block';
+                        } else {
+                            selectedScenarios = selectedScenarios.filter(s => s.scenario_prompt_id !== scenarioId);
+                            if (textarea) textarea.style.display = 'none';
+                        }
+                        updateSelectedScenariosEdit();
+                    });
+                });
+                
+                // Aggiungi listener per textarea scenari
+                document.querySelectorAll('.scenario-custom-text-edit').forEach(textarea => {
+                    textarea.addEventListener('input', function() {
+                        const scenarioId = this.dataset.scenarioId;
+                        const scenario = selectedScenarios.find(s => s.scenario_prompt_id === scenarioId);
+                        if (scenario) {
+                            scenario.custom_text = this.value.trim() || null;
+                        }
+                    });
+                });
+            }
+        } catch (error) {
+            console.error('Errore caricamento scenari:', error);
+            scenariosContainer.innerHTML = '<p class="info-text">Errore nel caricamento scenari</p>';
+        }
+        
+        function updateSelectedProductsEdit() {
+            selectedCountSpan.textContent = selectedProducts.length;
+            if (selectedProducts.length === 0) {
+                selectedContainer.innerHTML = '<p class="info-text">Nessun prodotto selezionato</p>';
+            } else {
+                selectedContainer.innerHTML = selectedProducts.map(p => `
+                    <span class="selected-item">${p.name} <button type="button" onclick="removeProductEdit('${p.id}')">×</button></span>
+                `).join('');
+            }
+        }
+        
+        function updateSelectedScenariosEdit() {
+            selectedScenariosCountSpan.textContent = selectedScenarios.length;
+            if (selectedScenarios.length === 0) {
+                selectedScenariosContainer.innerHTML = '<p class="info-text">Nessuno scenario selezionato</p>';
+            } else {
+                selectedScenariosContainer.innerHTML = selectedScenarios.map(s => {
+                    const scenario = scenarios.find(sc => sc.id === s.scenario_prompt_id);
+                    return `<span class="selected-item">${scenario ? scenario.name : s.scenario_prompt_id} <button type="button" onclick="removeScenarioEdit('${s.scenario_prompt_id}')">×</button></span>`;
+                }).join('');
+            }
+        }
+        
+        window.removeProductEdit = function(productId) {
+            selectedProducts = selectedProducts.filter(p => p.id !== productId);
+            const checkbox = document.querySelector(`.product-check-edit[value="${productId}"]`);
+            if (checkbox) checkbox.checked = false;
+            updateSelectedProductsEdit();
+        };
+        
+        window.removeScenarioEdit = function(scenarioId) {
+            selectedScenarios = selectedScenarios.filter(s => s.scenario_prompt_id !== scenarioId);
+            const checkbox = document.querySelector(`.scenario-check-edit[value="${scenarioId}"]`);
+            if (checkbox) checkbox.checked = false;
+            const textarea = document.querySelector(`.scenario-custom-text-edit[data-scenario-id="${scenarioId}"]`);
+            if (textarea) textarea.style.display = 'none';
+            updateSelectedScenariosEdit();
+        };
+        
+        updateSelectedProductsEdit();
+        updateSelectedScenariosEdit();
+    }
+    
+    async function updateOutfit(outfitId) {
+        try {
+            const selectedProducts = [];
+            document.querySelectorAll('.product-check-edit:checked').forEach(cb => {
+                selectedProducts.push(cb.value);
+            });
+            
+            const selectedScenarios = [];
+            document.querySelectorAll('.scenario-check-edit:checked').forEach(cb => {
+                const scenarioId = cb.value;
+                const textarea = document.querySelector(`.scenario-custom-text-edit[data-scenario-id="${scenarioId}"]`);
+                selectedScenarios.push({
+                    scenario_prompt_id: scenarioId,
+                    custom_text: textarea ? (textarea.value.trim() || null) : null
+                });
+            });
+            
+            const updateData = {
+                name: document.getElementById('edit-outfit-name').value.trim() || null,
+                product_ids: selectedProducts,
+                scenarios: selectedScenarios
+            };
+            
+            await window.apiCall(`/api/outfits/${outfitId}`, {
+                method: 'PUT',
+                body: JSON.stringify(updateData)
+            });
+            
+            if (window.showSuccess) {
+                window.showSuccess('Outfit aggiornato con successo!');
+            } else {
+                alert('Outfit aggiornato con successo!');
+            }
+            
+            closeEditOutfitModal();
+            loadOutfits();
+        } catch (error) {
+            if (window.showError) {
+                window.showError('Errore nell\'aggiornamento outfit: ' + error.message);
+            } else {
+                alert('Errore nell\'aggiornamento outfit: ' + error.message);
             }
         }
     }

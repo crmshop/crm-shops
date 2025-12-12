@@ -307,68 +307,119 @@ async def generate_outfit_image(
                     "custom_text": scenario_request.custom_text
                 })
         
-        # Costruisci prompt
-        prompt = request.prompt_override
-        if not prompt:
-            product_names = [p.get("name", "") for p in products]
-            product_categories = [p.get("category", "") for p in products]
-            
-            # Usa build_prompt con scenari dettagliati
-            from backend.services.ai_service import ai_service
-            prompt = ai_service.build_prompt(
-                product_category=", ".join(set(product_categories)) if product_categories else None,
-                scenario_details=scenario_details if scenario_details else None,
-                scenario=request.scenario  # Fallback per retrocompatibilità
-            )
-            
-            # Aggiungi nomi prodotti al prompt
-            if product_names:
-                prompt += f" Articoli indossati: {', '.join(product_names)}."
+        # Se ci sono scenari, genera una foto per ogni scenario (max 3)
+        # Se non ci sono scenari, genera una sola foto
+        scenarios_to_generate = scenario_details if scenario_details else [None]  # Se nessuno scenario, genera una foto
         
-        # Genera immagine usando AI service con tutte le immagini
-        from backend.services.ai_service import ai_service
+        # Limita a max 3 scenari
+        if len(scenarios_to_generate) > 3:
+            scenarios_to_generate = scenarios_to_generate[:3]
+            logger.warning(f"⚠️  Più di 3 scenari forniti, genero solo i primi 3")
         
-        ai_result = await ai_service.generate_image_with_product(
-            customer_photo_urls=customer_photo_urls,  # Lista di tutte le foto cliente (fino a 3)
-            product_image_urls=product_image_urls,  # Lista di tutte le immagini prodotto (fino a 10)
-            prompt=prompt,
-            scenario=request.scenario,  # Mantenuto per retrocompatibilità
-            ai_model="banana_pro"  # Usa Banana Pro per generazione immagini
-        )
+        product_names = [p.get("name", "") for p in products]
+        product_categories = [p.get("category", "") for p in products]
         
-        generated_image_url = ai_result.get("image_url", "")
+        generated_images = []
+        errors = []
         
-        # Salva immagine generata
-        # Usa la prima foto cliente come riferimento principale
-        image_data = {
-            "customer_photo_id": str(customer_photos[0]["id"]),
-            "image_url": generated_image_url,
-            "prompt_used": prompt,
-            "scenario": request.scenario or (", ".join([sd.get("description", "") for sd in scenario_details]) if scenario_details else None),
-            "ai_service": ai_result.get("ai_service", "banana_pro")  # Usa il servizio effettivamente usato
-        }
+        # Genera una foto per ogni scenario
+        for idx, scenario_detail in enumerate(scenarios_to_generate):
+            try:
+                # Costruisci prompt per questo scenario specifico
+                prompt = request.prompt_override
+                if not prompt:
+                    # Usa build_prompt con questo scenario specifico
+                    from backend.services.ai_service import ai_service
+                    scenario_list = [scenario_detail] if scenario_detail else None
+                    prompt = ai_service.build_prompt(
+                        product_category=", ".join(set(product_categories)) if product_categories else None,
+                        scenario_details=scenario_list,
+                        scenario=request.scenario  # Fallback per retrocompatibilità
+                    )
+                    
+                    # Aggiungi nomi prodotti al prompt
+                    if product_names:
+                        prompt += f" Articoli indossati: {', '.join(product_names)}."
+                
+                logger.info(f"🎨 Generazione immagine {idx + 1}/{len(scenarios_to_generate)} per scenario: {scenario_detail.get('description', 'Nessuno') if scenario_detail else 'Default'}")
+                
+                # Genera immagine usando AI service con tutte le immagini
+                from backend.services.ai_service import ai_service
+                
+                ai_result = await ai_service.generate_image_with_product(
+                    customer_photo_urls=customer_photo_urls,  # Lista di tutte le foto cliente (fino a 3)
+                    product_image_urls=product_image_urls,  # Lista di tutte le immagini prodotto (fino a 10)
+                    prompt=prompt,
+                    scenario=request.scenario,  # Mantenuto per retrocompatibilità
+                    ai_model="banana_pro"  # Usa Banana Pro per generazione immagini
+                )
+                
+                generated_image_url = ai_result.get("image_url", "")
+                
+                if not generated_image_url:
+                    error_msg = f"Immagine {idx + 1} non generata correttamente"
+                    logger.error(f"❌ {error_msg}")
+                    errors.append(error_msg)
+                    continue
+                
+                # Determina scenario description per questo scenario
+                scenario_description = None
+                if scenario_detail:
+                    scenario_description = scenario_detail.get("description", "")
+                    if scenario_detail.get("custom_text"):
+                        scenario_description += f" - {scenario_detail['custom_text']}"
+                elif request.scenario:
+                    scenario_description = request.scenario
+                
+                # Salva immagine generata
+                # Usa la prima foto cliente come riferimento principale
+                image_data = {
+                    "customer_photo_id": str(customer_photos[0]["id"]),
+                    "image_url": generated_image_url,
+                    "prompt_used": prompt,
+                    "scenario": scenario_description,
+                    "ai_service": ai_result.get("ai_service", "banana_pro")  # Usa il servizio effettivamente usato
+                }
+                
+                if request.outfit_id:
+                    image_data["outfit_id"] = str(request.outfit_id)
+                
+                # Se c'è un errore nel risultato, loggalo
+                if ai_result.get("status") == "error":
+                    error_msg = f"Errore durante generazione immagine {idx + 1}: {ai_result.get('error', 'Unknown error')}"
+                    logger.error(f"❌ {error_msg}")
+                    if ai_result.get("error_details"):
+                        logger.error(f"   Dettagli errore:\n{ai_result.get('error_details')}")
+                    errors.append(error_msg)
+                    continue
+                
+                result = supabase.table("generated_images").insert(image_data).execute()
+                
+                if result.data:
+                    generated_images.append(result.data[0])
+                    logger.info(f"✅ Immagine {idx + 1}/{len(scenarios_to_generate)} salvata con successo")
+                else:
+                    error_msg = f"Errore durante il salvataggio dell'immagine {idx + 1}"
+                    logger.error(f"❌ {error_msg}")
+                    errors.append(error_msg)
+                    
+            except Exception as e:
+                error_msg = f"Errore durante generazione immagine {idx + 1}: {str(e)}"
+                logger.error(f"❌ {error_msg}")
+                errors.append(error_msg)
+                continue
         
-        if request.outfit_id:
-            image_data["outfit_id"] = str(request.outfit_id)
-        
-        # Se c'è un errore nel risultato, loggalo
-        if ai_result.get("status") == "error":
-            logger.error(f"❌ Errore durante generazione immagine: {ai_result.get('error', 'Unknown error')}")
-            if ai_result.get("error_details"):
-                logger.error(f"   Dettagli errore:\n{ai_result.get('error_details')}")
-        
-        result = supabase.table("generated_images").insert(image_data).execute()
-        
-        if not result.data:
+        if not generated_images:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Errore durante la generazione dell'immagine"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Nessuna immagine generata con successo. Errori: {'; '.join(errors)}"
             )
         
         return {
-            "message": "Immagine outfit generata con successo",
-            "image": result.data[0],
-            "image_url": generated_image_url
+            "message": f"{len(generated_images)} immagine/i outfit generate con successo",
+            "images": generated_images,
+            "count": len(generated_images),
+            "errors": errors if errors else None
         }
     except HTTPException:
         raise

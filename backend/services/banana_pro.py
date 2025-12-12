@@ -195,12 +195,14 @@ class BananaProService:
             # Costruisci prompt completo usando concatenazione per preservare {image1}, {image2}, etc.
             # Segue il formato del notebook funzionante che è più specifico e descrittivo
             # Nel notebook: "Immagine professionale che ritrae la persona {image1} con indossati i pantaloni come da immagine {image2}"
+            # IMPORTANTE: Enfatizza che le foto cliente devono essere utilizzate per mantenere volto e forma fisica
             full_prompt = (
                 "Immagine professionale che ritrae " + customer_part + " con indossato " + product_part + ". "
+                + "IMPORTANTE: Devi utilizzare le foto cliente fornite per mantenere esattamente lo stesso volto, la stessa forma fisica, la stessa corporatura, la stessa altezza e tutte le caratteristiche fisiche della persona. Il volto deve essere identico a quello nelle foto cliente. La persona nell'immagine generata deve essere la stessa persona delle foto cliente, non una persona generica. "
                 + prompt + " "
                 + "Il volto deve essere fedele alla foto così come la forma fisica. "
                 + "L'immagine deve essere di alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. "
-                + "La persona deve essere chiaramente visibile e gli articoli devono essere ben indossati."
+                + "La persona deve essere chiaramente visibile e gli articoli devono essere ben indossati sulla persona reale dalle foto cliente."
             )
             
             # Log del prompt completo per debug

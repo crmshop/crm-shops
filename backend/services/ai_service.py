@@ -119,7 +119,10 @@ class AIService:
         Returns:
             Prompt formattato
         """
-        base_prompt = "Immagine professionale che ritrae la persona dalle foto cliente"
+        # Prompt base che enfatizza l'uso delle foto del cliente
+        # IMPORTANTE: Le foto cliente vengono passate come {image1}, {image2}, {image3}
+        # e devono essere utilizzate per mantenere il volto e la forma fisica della persona
+        base_prompt = "Immagine professionale che ritrae fedelmente la persona dalle foto cliente fornite, mantenendo esattamente lo stesso volto, la stessa forma fisica e le stesse caratteristiche fisiche della persona nelle foto"
         
         if product_category:
             base_prompt += f" con indossato {product_category}"
@@ -169,7 +172,7 @@ class AIService:
             if scenario.lower() in scenario_prompts:
                 base_prompt += f". {scenario_prompts[scenario.lower()]}"
         
-        base_prompt += ". Alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. La persona deve essere chiaramente visibile e gli articoli devono essere ben indossati."
+        base_prompt += ". IMPORTANTE: Il volto della persona deve essere identico a quello nelle foto cliente fornite. La forma fisica, l'altezza, la corporatura e tutte le caratteristiche fisiche devono corrispondere esattamente alle foto cliente. Gli articoli di abbigliamento devono essere indossati sulla persona reale dalle foto, non su una persona generica. Alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. La persona deve essere chiaramente visibile e gli articoli devono essere ben indossati."
         
         return base_prompt
 

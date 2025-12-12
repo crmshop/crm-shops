@@ -256,6 +256,144 @@ async def create_outfit(outfit: OutfitCreate, supabase: Client = Depends(get_sup
         )
 
 
+class OutfitUpdate(BaseModel):
+    name: Optional[str] = None
+    product_ids: Optional[List[UUID]] = None  # Max 10 prodotti
+    scenarios: Optional[List[OutfitScenario]] = None  # Max 3 scenari
+
+
+@router.put("/{outfit_id}")
+async def update_outfit(
+    outfit_id: UUID,
+    outfit_update: OutfitUpdate,
+    supabase: Client = Depends(get_supabase)
+):
+    """Aggiorna un outfit esistente"""
+    try:
+        # Verifica che l'outfit esista
+        existing_outfit = supabase.table("outfits").select("*").eq("id", str(outfit_id)).execute()
+        if not existing_outfit.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Outfit non trovato"
+            )
+        
+        outfit = existing_outfit.data[0]
+        
+        # Aggiorna nome se fornito
+        update_data = {}
+        if outfit_update.name is not None:
+            update_data["name"] = outfit_update.name
+        
+        if update_data:
+            supabase.table("outfits").update(update_data).eq("id", str(outfit_id)).execute()
+        
+        # Aggiorna prodotti se forniti
+        if outfit_update.product_ids is not None:
+            # Valida numero prodotti (max 10)
+            if len(outfit_update.product_ids) > 10:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Puoi selezionare massimo 10 prodotti"
+                )
+            
+            if len(outfit_update.product_ids) == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Seleziona almeno un prodotto"
+                )
+            
+            # Elimina prodotti esistenti
+            supabase.table("outfit_products").delete().eq("outfit_id", str(outfit_id)).execute()
+            
+            # Inserisci nuovi prodotti
+            outfit_products = [
+                {"outfit_id": str(outfit_id), "product_id": str(pid)}
+                for pid in outfit_update.product_ids
+            ]
+            if outfit_products:
+                supabase.table("outfit_products").insert(outfit_products).execute()
+        
+        # Aggiorna scenari se forniti
+        if outfit_update.scenarios is not None:
+            # Valida numero scenari (max 3)
+            scenarios = outfit_update.scenarios
+            if len(scenarios) > 3:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Puoi selezionare massimo 3 scenari"
+                )
+            
+            # Verifica che gli scenari esistano e appartengano al negozio
+            if scenarios:
+                scenario_ids = [str(s.scenario_prompt_id) for s in scenarios]
+                scenarios_result = supabase.table("scenario_prompts").select("*").in_("id", scenario_ids).execute()
+                found_scenario_ids = {s["id"] for s in scenarios_result.data}
+                
+                for scenario in scenarios:
+                    if str(scenario.scenario_prompt_id) not in found_scenario_ids:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Scenario prompt {scenario.scenario_prompt_id} non trovato"
+                        )
+                    # Verifica che lo scenario appartenga al negozio
+                    scenario_data = next(s for s in scenarios_result.data if s["id"] == str(scenario.scenario_prompt_id))
+                    if scenario_data["shop_id"] != str(outfit["shop_id"]):
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Lo scenario {scenario.scenario_prompt_id} non appartiene a questo negozio"
+                        )
+            
+            # Elimina scenari esistenti
+            supabase.table("outfit_scenarios").delete().eq("outfit_id", str(outfit_id)).execute()
+            
+            # Inserisci nuovi scenari
+            if scenarios:
+                outfit_scenarios = [
+                    {
+                        "outfit_id": str(outfit_id),
+                        "scenario_prompt_id": str(s.scenario_prompt_id),
+                        "custom_text": s.custom_text
+                    }
+                    for s in scenarios
+                ]
+                supabase.table("outfit_scenarios").insert(outfit_scenarios).execute()
+        
+        # Recupera l'outfit aggiornato con i prodotti e scenari
+        final_result = supabase.table("outfits").select(
+            "*, outfit_products(product_id), outfit_scenarios(scenario_prompt_id, custom_text)"
+        ).eq("id", str(outfit_id)).execute()
+        
+        final_outfit = final_result.data[0]
+        final_outfit["product_ids"] = [
+            op["product_id"] for op in final_outfit.get("outfit_products", [])
+        ]
+        final_outfit["scenarios"] = [
+            {
+                "scenario_prompt_id": os["scenario_prompt_id"],
+                "custom_text": os.get("custom_text")
+            }
+            for os in final_outfit.get("outfit_scenarios", [])
+        ]
+        if "outfit_products" in final_outfit:
+            del final_outfit["outfit_products"]
+        if "outfit_scenarios" in final_outfit:
+            del final_outfit["outfit_scenarios"]
+        
+        return {
+            "message": "Outfit aggiornato con successo",
+            "outfit": final_outfit
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Errore aggiornamento outfit: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Errore durante l'aggiornamento dell'outfit: {str(e)}"
+        )
+
+
 @router.delete("/{outfit_id}")
 async def delete_outfit(outfit_id: UUID, supabase: Client = Depends(get_supabase)):
     """Elimina un outfit"""
