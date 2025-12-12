@@ -23,6 +23,7 @@ class AIService:
         product_image_urls: list[str],  # Lista di URL immagini prodotto (fino a 10)
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
+        product_names: Optional[list[str]] = None,  # Nomi dei prodotti per prompt più specifico
         ai_model: Optional[str] = "banana_pro"  # Default: Banana Pro (Gemini non può generare immagini)
     ) -> Dict[str, Any]:
         """
@@ -33,6 +34,7 @@ class AIService:
             product_image_urls: Lista di URL delle immagini dei prodotti (fino a 10)
             prompt: Prompt personalizzato (opzionale)
             scenario: Scenario/contesto (montagna, spiaggia, etc.)
+            product_names: Lista di nomi dei prodotti (opzionale, usato per prompt più specifico)
             ai_model: Modello AI da usare ('banana_pro' o 'gemini')
         
         Returns:
@@ -54,7 +56,8 @@ class AIService:
                         customer_photo_urls=customer_photo_urls,
                         product_image_urls=product_image_urls,
                         prompt=prompt,
-                        scenario=scenario
+                        scenario=scenario,
+                        product_names=product_names
                     )
                     return result
             

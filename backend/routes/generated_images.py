@@ -266,7 +266,7 @@ async def generate_outfit_image(
         logger.info(f"🛍️ Prodotti recuperati dal database: {len(products)}")
         for idx, p in enumerate(products, 1):
             image_url = p.get("image_url")
-            logger.info(f"   Prodotto {idx}: {p.get('name', 'Sconosciuto')} - URL: {image_url if image_url else 'NON DISPONIBILE'}")
+            logger.info(f"   Prodotto {idx}: {p.get('name', 'Sconosciuto')} ({p.get('category', 'N/A')}) - URL: {image_url if image_url else 'NON DISPONIBILE'}")
         
         # Filtra solo prodotti con URL immagine validi (non None, non vuoti, e che iniziano con http)
         product_image_urls = []
@@ -414,11 +414,13 @@ async def generate_outfit_image(
                 # Genera immagine usando AI service con tutte le immagini
                 from backend.services.ai_service import ai_service
                 
+                # Passa anche i nomi dei prodotti per un prompt più specifico
                 ai_result = await ai_service.generate_image_with_product(
                     customer_photo_urls=customer_photo_urls,  # Lista di tutte le foto cliente (fino a 3)
                     product_image_urls=product_image_urls,  # Lista di tutte le immagini prodotto (fino a 10)
                     prompt=prompt,
                     scenario=request.scenario,  # Mantenuto per retrocompatibilità
+                    product_names=product_names,  # Nomi dei prodotti per prompt più specifico
                     ai_model="banana_pro"  # Usa Banana Pro per generazione immagini
                 )
                 

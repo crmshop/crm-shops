@@ -78,6 +78,7 @@ class BananaProService:
         product_image_urls: list[str],  # Lista di URL immagini prodotto (fino a 10)
         prompt: Optional[str] = None,
         scenario: Optional[str] = None,
+        product_names: Optional[list[str]] = None,  # Nomi dei prodotti per prompt più specifico
         model: str = "gemini-2.5-flash-image"  # Modello per generazione immagini con input immagini
     ) -> Dict[str, Any]:
         """
@@ -88,6 +89,7 @@ class BananaProService:
             product_image_urls: Lista di URL delle immagini dei prodotti (fino a 10)
             prompt: Prompt personalizzato (opzionale)
             scenario: Scenario/contesto (montagna, spiaggia, etc.)
+            product_names: Lista di nomi dei prodotti (opzionale, usato per prompt più specifico)
             model: Modello AI da usare
         
         Returns:
@@ -246,29 +248,72 @@ class BananaProService:
                 customer_refs_str = ", ".join(customer_refs)
                 customer_part = "la persona dalle foto " + customer_refs_str + " (USA QUESTE FOTO COME RIFERIMENTO PRINCIPALE PER IL VOLTO E LA FORMA FISICA)"
             
-            if len(product_images_bytes) == 1:
-                product_part = "l'articolo di abbigliamento come da immagine " + product_refs[0]
+            # Costruisci riferimenti espliciti a ogni prodotto
+            # IMPORTANTE: Ogni prodotto deve essere menzionato esplicitamente nel prompt
+            # Se abbiamo i nomi dei prodotti, usali per essere più specifici
+            if product_names and len(product_names) == len(product_images_bytes):
+                # Usa i nomi reali dei prodotti per essere più specifici
+                if len(product_images_bytes) == 1:
+                    product_part = f"l'articolo '{product_names[0]}' come da immagine " + product_refs[0] + " (DEVE essere chiaramente visibile e indossato)"
+                else:
+                    # Costruisci una lista esplicita di ogni prodotto con il suo nome
+                    product_refs_list = []
+                    for idx, (ref, name) in enumerate(zip(product_refs, product_names), 1):
+                        product_refs_list.append(f"'{name}' come da immagine {ref}")
+                    product_refs_str = ", ".join(product_refs_list)
+                    product_part = f"TUTTI gli articoli di abbigliamento: {product_refs_str} (OGNI prodotto DEVE essere chiaramente visibile e indossato, nessun prodotto può essere omesso o nascosto)"
             else:
-                product_refs_str = ", ".join(product_refs)
-                product_part = "gli articoli di abbigliamento come da immagini " + product_refs_str
+                # Fallback senza nomi prodotti
+                if len(product_images_bytes) == 1:
+                    product_part = "TUTTI gli articoli di abbigliamento come da immagine " + product_refs[0] + " (DEVE essere chiaramente visibile e indossato)"
+                else:
+                    # Costruisci una lista esplicita di ogni prodotto
+                    product_refs_list = []
+                    for idx, ref in enumerate(product_refs, 1):
+                        product_refs_list.append(f"prodotto {idx} come da immagine {ref}")
+                    product_refs_str = ", ".join(product_refs_list)
+                    product_part = f"TUTTI gli articoli di abbigliamento: {product_refs_str} (OGNI prodotto DEVE essere chiaramente visibile e indossato, nessun prodotto può essere omesso)"
             
             # Costruisci prompt completo usando concatenazione per preservare {image1}, {image2}, etc.
             # Segue il formato del notebook funzionante che è più specifico e descrittivo
             # Nel notebook: "Immagine professionale che ritrae la persona {image1} con indossati i pantaloni come da immagine {image2}"
             # IMPORTANTE: Enfatizza che le foto cliente devono essere utilizzate per mantenere volto e forma fisica
             # Il prompt deve essere molto esplicito: PRIMA le foto cliente, POI il resto
+            # IMPORTANTE: Ogni prodotto deve essere esplicitamente menzionato e deve essere visibile
+            
+            # Costruisci lista esplicita dei prodotti se disponibili
+            products_list_text = ""
+            if product_names and len(product_names) > 0:
+                products_list_text = f" I prodotti che DEBBONO essere presenti e completamente visibili sono: {', '.join(product_names)}. "
+                # Aggiungi enfasi per prodotti specifici
+                if any("scarpe" in name.lower() or "shoe" in name.lower() for name in product_names):
+                    products_list_text += " Le scarpe DEBBONO essere chiaramente visibili ai piedi della persona. "
+                if any("giacca" in name.lower() or "jacket" in name.lower() or "blazer" in name.lower() for name in product_names):
+                    products_list_text += " La giacca/blazer DEVE essere chiaramente visibile sul busto della persona. "
+                if any("pantaloni" in name.lower() or "pants" in name.lower() or "trousers" in name.lower() for name in product_names):
+                    products_list_text += " I pantaloni DEBBONO essere chiaramente visibili sulle gambe della persona. "
+            
             full_prompt = (
                 "CRITICO: L'immagine generata DEVE mostrare la STESSA PERSONA delle foto cliente fornite. "
                 + "Immagine professionale che ritrae " + customer_part + " con indossato " + product_part + ". "
-                + "REQUISITI OBBLIGATORI: "
+                + products_list_text
+                + "REQUISITI OBBLIGATORI PER IL VOLTO E LA FORMA FISICA: "
                 + "1. Il volto della persona nell'immagine generata DEVE essere IDENTICO al volto nelle foto cliente fornite. "
                 + "2. La forma fisica, l'altezza, la corporatura e tutte le caratteristiche fisiche DEBBONO corrispondere esattamente alle foto cliente. "
                 + "3. La persona nell'immagine generata DEVE essere la STESSA persona delle foto cliente, NON una persona generica o diversa. "
-                + "4. Gli articoli di abbigliamento devono essere indossati sulla persona reale dalle foto cliente, non su una persona diversa. "
+                + "REQUISITI OBBLIGATORI PER I PRODOTTI: "
+                + "4. TUTTI gli articoli di abbigliamento dalle immagini prodotto fornite DEBBONO essere chiaramente visibili e indossati nella persona. "
+                + "5. NESSUN prodotto può essere omesso, nascosto o parzialmente visibile. Ogni prodotto deve essere completamente visibile e riconoscibile. "
+                + "6. Se ci sono più prodotti (es: giacca, pantaloni, scarpe), TUTTI devono essere presenti e completamente visibili nell'immagine generata. "
+                + "7. Gli articoli di abbigliamento devono essere indossati sulla persona reale dalle foto cliente, non su una persona diversa. "
+                + "8. Le scarpe devono essere chiaramente visibili ai piedi della persona. "
+                + "9. Le giacche o capi superiori devono essere chiaramente visibili sul busto della persona. "
+                + "10. I pantaloni devono essere chiaramente visibili sulle gambe della persona. "
                 + prompt + " "
                 + "Il volto deve essere fedele alla foto così come la forma fisica. "
+                + "TUTTI i prodotti devono essere chiaramente visibili e ben indossati. "
                 + "L'immagine deve essere di alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. "
-                + "La persona deve essere chiaramente visibile e gli articoli devono essere ben indossati sulla persona reale dalle foto cliente."
+                + "La persona deve essere chiaramente visibile e TUTTI gli articoli devono essere ben indossati sulla persona reale dalle foto cliente."
             )
             
             logger.info(f"📝 Prompt completo costruito: {full_prompt[:300]}...")
