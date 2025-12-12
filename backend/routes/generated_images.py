@@ -400,6 +400,16 @@ async def generate_outfit_image(
                         prompt += f" Articoli indossati: {', '.join(product_names)}."
                 
                 logger.info(f"🎨 Generazione immagine {idx + 1}/{len(scenarios_to_generate)} per scenario: {scenario_detail.get('description', 'Nessuno') if scenario_detail else 'Default'}")
+                logger.info(f"   📸 Foto cliente da usare: {len(customer_photo_urls)} immagini")
+                logger.info(f"   🛍️ Immagini prodotto da usare: {len(product_image_urls)} immagini")
+                logger.info(f"   📝 Prompt: {prompt[:200]}...")
+                
+                # Verifica che le foto cliente siano valide
+                if not customer_photo_urls or len(customer_photo_urls) == 0:
+                    error_msg = f"Nessuna foto cliente valida per la generazione immagine {idx + 1}"
+                    logger.error(f"❌ {error_msg}")
+                    errors.append(error_msg)
+                    continue
                 
                 # Genera immagine usando AI service con tutte le immagini
                 from backend.services.ai_service import ai_service

@@ -158,11 +158,32 @@
                                 <div id="selected-scenarios"></div>
                                 <small>Selezionati: <span id="selected-scenarios-count">0</span>/3</small>
                             </div>
+                            
+                            <!-- Barra di progresso per generazione immagini -->
+                            <div id="image-generation-progress" style="display: none; margin: 1.5rem 0; padding: 1rem; background: #f5f5f5; border-radius: 8px;">
+                                <h3 style="margin-top: 0; margin-bottom: 0.5rem;">Generazione Immagini</h3>
+                                <div style="margin-bottom: 0.5rem;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                                        <span id="progress-text">Preparazione...</span>
+                                        <span id="progress-percentage">0%</span>
+                                    </div>
+                                    <div style="width: 100%; height: 24px; background: #e0e0e0; border-radius: 12px; overflow: hidden;">
+                                        <div id="progress-bar" style="height: 100%; background: linear-gradient(90deg, #4CAF50, #45a049); width: 0%; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.85rem;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="generated-images-preview-progress" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; margin-top: 1rem;">
+                                    <!-- Le immagini verranno aggiunte qui man mano che vengono generate -->
+                                </div>
+                            </div>
+                            
                             <div class="form-actions">
                                 <button type="button" class="btn btn-secondary" onclick="generateOutfitImage()" id="generate-image-btn" disabled>
-                                    🎨 Crea Immagine
+                                    🎨 Genera Immagini
                                 </button>
-                                <button type="submit" class="btn btn-primary">Crea Outfit</button>
+                                <button type="submit" class="btn btn-primary" id="create-outfit-btn" disabled>
+                                    Crea Outfit
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -180,9 +201,24 @@
             const selectedScenariosContainer = document.getElementById('selected-scenarios');
             const selectedScenariosCountSpan = document.getElementById('selected-scenarios-count');
             const generateBtn = document.getElementById('generate-image-btn');
+            const createBtn = document.getElementById('create-outfit-btn');
+            const progressContainer = document.getElementById('image-generation-progress');
             
+            // Reset stato iniziale
             let selectedProducts = [];
             let selectedScenarios = [];
+            let generatedImagesForOutfit = []; // Immagini generate per questo outfit
+            let isGeneratingImages = false; // Flag per tracciare se la generazione è in corso
+            
+            // Disabilita pulsante crea outfit all'inizio
+            if (createBtn) {
+                createBtn.disabled = true;
+            }
+            
+            // Nascondi barra di progresso all'inizio
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
             
             // Quando cambia il negozio, carica clienti e prodotti
             shopSelect.addEventListener('change', async function() {
@@ -372,6 +408,17 @@
             
             document.getElementById('outfit-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
+                
+                // Verifica che le immagini siano state generate
+                if (generatedImagesForOutfit.length === 0) {
+                    if (window.showError) {
+                        window.showError('Devi prima generare le immagini prima di salvare l\'outfit');
+                    } else {
+                        alert('Devi prima generare le immagini prima di salvare l\'outfit');
+                    }
+                    return;
+                }
+                
                 await createOutfit(selectedProducts, selectedScenarios);
             });
         });
@@ -432,6 +479,11 @@
             } else {
                 alert('Outfit creato con successo!');
             }
+            
+            // Reset stato dopo il salvataggio
+            generatedImagesForOutfit = [];
+            isGeneratingImages = false;
+            
             closeOutfitModal();
             loadOutfits();
         } catch (error) {
@@ -482,10 +534,35 @@
             return;
         }
         
-        try {
-            if (window.showSuccess) {
-                window.showSuccess('Generazione immagine in corso...');
+        // Preveni doppia generazione
+        if (isGeneratingImages) {
+            if (window.showError) {
+                window.showError('Generazione immagini già in corso...');
             }
+            return;
+        }
+        
+        // Mostra barra di progresso
+        const progressContainer = document.getElementById('image-generation-progress');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const previewProgress = document.getElementById('generated-images-preview-progress');
+        const generateBtn = document.getElementById('generate-image-btn');
+        const createBtn = document.getElementById('create-outfit-btn');
+        
+        progressContainer.style.display = 'block';
+        previewProgress.innerHTML = '';
+        generateBtn.disabled = true;
+        createBtn.disabled = true;
+        isGeneratingImages = true;
+        
+        // Determina quante immagini verranno generate
+        const totalImages = selectedScenariosForGeneration.length > 0 ? selectedScenariosForGeneration.length : 1;
+        
+        try {
+            // Aggiorna progresso iniziale
+            updateProgress(0, totalImages, 'Preparazione generazione immagini...', progressBar, progressText, progressPercentage);
             
             // Chiama API per generare immagine con scenari
             const requestBody = {
@@ -499,6 +576,8 @@
                 requestBody.scenarios = selectedScenariosForGeneration;
             }
             
+            updateProgress(10, totalImages, 'Invio richiesta al server...', progressBar, progressText, progressPercentage);
+            
             const response = await window.apiCall('/api/generated-images/generate-outfit', {
                 method: 'POST',
                 body: JSON.stringify(requestBody)
@@ -506,7 +585,32 @@
             
             // Gestisci risposta con più immagini
             const generatedImages = response.images || (response.image ? [response.image] : []);
+            generatedImagesForOutfit = generatedImages; // Salva per uso futuro
             const imageCount = response.count || generatedImages.length;
+            
+            // Aggiorna progresso man mano che le immagini arrivano
+            for (let i = 0; i < generatedImages.length; i++) {
+                const img = generatedImages[i];
+                const progress = 30 + ((i + 1) / generatedImages.length) * 60; // Da 30% a 90%
+                updateProgress(progress, totalImages, `Immagine ${i + 1}/${generatedImages.length} generata`, progressBar, progressText, progressPercentage);
+                
+                // Aggiungi immagine al preview
+                const imgDiv = document.createElement('div');
+                imgDiv.style.textAlign = 'center';
+                imgDiv.innerHTML = `
+                    <img src="${img.image_url}" alt="Outfit generato ${i + 1}" 
+                         style="max-width: 100%; border-radius: 8px; border: 2px solid #4CAF50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    ${img.scenario ? `<p style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;">${img.scenario.substring(0, 30)}...</p>` : ''}
+                    <p style="font-size: 0.7rem; color: #4CAF50; margin-top: 0.25rem;">✓ Completata</p>
+                `;
+                previewProgress.appendChild(imgDiv);
+                
+                // Piccolo delay per animazione
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            
+            // Completa progresso
+            updateProgress(100, totalImages, `Tutte le ${imageCount} immagini generate con successo!`, progressBar, progressText, progressPercentage);
             
             if (window.showSuccess) {
                 if (imageCount > 1) {
@@ -514,52 +618,33 @@
                 } else {
                     window.showSuccess('Immagine generata con successo!');
                 }
-            } else {
-                if (imageCount > 1) {
-                    alert(`${imageCount} immagini generate con successo!`);
-                } else {
-                    alert('Immagine generata con successo!');
-                }
             }
             
-            // Mostra le immagini generate
-            if (generatedImages.length > 0) {
-                // Rimuovi preview precedenti se esistono
-                const existingPreview = document.querySelector('.generated-images-preview-container');
-                if (existingPreview) {
-                    existingPreview.remove();
-                }
-                
-                const preview = document.createElement('div');
-                preview.className = 'generated-images-preview-container';
-                preview.style.marginTop = '1rem';
-                preview.style.padding = '1rem';
-                preview.style.border = '1px solid #ddd';
-                preview.style.borderRadius = '8px';
-                preview.innerHTML = `
-                    <h3>Immagini Generate (${generatedImages.length})</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                        ${generatedImages.map((img, idx) => `
-                            <div style="text-align: center;">
-                                <img src="${img.image_url}" alt="Outfit generato ${idx + 1}" 
-                                     style="max-width: 100%; border-radius: 8px; border: 1px solid #ddd;">
-                                ${img.scenario ? `<p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">${img.scenario}</p>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-                const form = document.getElementById('outfit-form');
-                if (form) {
-                    form.appendChild(preview);
-                }
-            }
+            // Abilita pulsante crea outfit
+            createBtn.disabled = false;
+            generateBtn.disabled = false;
+            
         } catch (error) {
+            updateProgress(0, totalImages, `Errore: ${error.message}`, progressBar, progressText, progressPercentage);
+            progressBar.style.background = '#f44336';
+            
             if (window.showError) {
-                window.showError('Errore nella generazione immagine: ' + error.message);
+                window.showError('Errore nella generazione immagini: ' + error.message);
             } else {
-                alert('Errore nella generazione immagine: ' + error.message);
+                alert('Errore nella generazione immagini: ' + error.message);
             }
+            
+            generateBtn.disabled = false;
+            createBtn.disabled = true; // Non permettere di salvare se c'è stato un errore
+        } finally {
+            isGeneratingImages = false;
         }
+    }
+    
+    function updateProgress(percentage, total, text, progressBar, progressText, progressPercentage) {
+        progressBar.style.width = `${percentage}%`;
+        progressText.textContent = text;
+        progressPercentage.textContent = `${Math.round(percentage)}%`;
     }
 
     async function editOutfit(outfitId) {
@@ -917,7 +1002,16 @@
 
     function closeOutfitModal() {
         const modal = document.getElementById('outfit-modal');
-        if (modal) modal.remove();
+        if (modal) {
+            // Reset stato generazione immagini
+            generatedImagesForOutfit = [];
+            isGeneratingImages = false;
+            const progressContainer = document.getElementById('image-generation-progress');
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+            modal.remove();
+        }
     }
 
     // Esporta funzioni per uso globale

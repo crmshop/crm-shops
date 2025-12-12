@@ -150,15 +150,36 @@ class BananaProService:
             
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Scarica tutte le foto cliente
+                logger.info(f"📥 Download {len(customer_photo_urls_clean)} foto cliente...")
                 for i, url in enumerate(customer_photo_urls_clean, 1):
                     try:
-                        response = await client.get(url)
+                        if not url or not isinstance(url, str) or len(url.strip()) == 0:
+                            logger.error(f"❌ URL foto cliente {i} non valido: {url}")
+                            raise Exception(f"URL foto cliente {i} non valido o vuoto")
+                        
+                        logger.info(f"📥 Download foto cliente {i}/{len(customer_photo_urls_clean)}: {url[:100]}...")
+                        response = await client.get(url, follow_redirects=True)
                         response.raise_for_status()
+                        
+                        if not response.content or len(response.content) == 0:
+                            logger.error(f"❌ Foto cliente {i} scaricata ma vuota")
+                            raise Exception(f"Foto cliente {i} scaricata ma vuota")
+                        
                         customer_images_bytes.append(response.content)
-                        logger.info(f"✅ Foto cliente {i}/{len(customer_photo_urls_clean)} scaricata: {len(response.content)} bytes")
+                        logger.info(f"✅ Foto cliente {i}/{len(customer_photo_urls_clean)} scaricata con successo: {len(response.content)} bytes")
+                    except httpx.HTTPError as e:
+                        logger.error(f"❌ Errore HTTP download foto cliente {i} ({url[:50]}...): {e}")
+                        if hasattr(e, 'response') and e.response is not None:
+                            logger.error(f"   Status code: {e.response.status_code}")
+                            logger.error(f"   Response: {e.response.text[:200]}")
+                        raise Exception(f"Impossibile scaricare foto cliente {i} da {url[:50]}...: {str(e)}")
                     except Exception as e:
-                        logger.error(f"❌ Errore download foto cliente {i}: {e}")
+                        logger.error(f"❌ Errore download foto cliente {i} ({url[:50] if url else 'URL None'}...): {e}")
+                        import traceback
+                        logger.error(f"   Traceback: {traceback.format_exc()}")
                         raise Exception(f"Impossibile scaricare foto cliente {i}: {str(e)}")
+                
+                logger.info(f"✅ Tutte le {len(customer_images_bytes)} foto cliente scaricate con successo")
                 
                 # Scarica tutte le immagini prodotto
                 for i, url in enumerate(product_image_urls_clean, 1):
@@ -198,6 +219,10 @@ class BananaProService:
             # Le immagini vengono passate nell'ordine: prima tutte le foto cliente, poi tutti i prodotti
             # Il modello associa automaticamente le immagini ai placeholder {image1}, {image2}, etc.
             
+            logger.info(f"📝 Prompt ricevuto: {prompt[:200]}...")
+            logger.info(f"📸 Foto cliente da usare: {len(customer_images_bytes)} immagini")
+            logger.info(f"🛍️ Immagini prodotto da usare: {len(product_images_bytes)} immagini")
+            
             # Costruisci riferimenti alle immagini cliente
             # IMPORTANTE: Usa singole graffe {image1} non doppie {{image1}}
             # Le doppie graffe vengono interpretate come testo letterale, non come placeholder
@@ -216,10 +241,10 @@ class BananaProService:
             # Nel notebook: "la persona {image1} con indossati i pantaloni come da immagine {image2}"
             # Usa concatenazione invece di f-string per preservare le graffe singole
             if len(customer_images_bytes) == 1:
-                customer_part = "la persona dalla foto " + customer_refs[0]
+                customer_part = "la persona dalla foto " + customer_refs[0] + " (USA QUESTA FOTO COME RIFERIMENTO PRINCIPALE PER IL VOLTO E LA FORMA FISICA)"
             else:
                 customer_refs_str = ", ".join(customer_refs)
-                customer_part = "la persona dalle foto " + customer_refs_str
+                customer_part = "la persona dalle foto " + customer_refs_str + " (USA QUESTE FOTO COME RIFERIMENTO PRINCIPALE PER IL VOLTO E LA FORMA FISICA)"
             
             if len(product_images_bytes) == 1:
                 product_part = "l'articolo di abbigliamento come da immagine " + product_refs[0]
@@ -231,14 +256,22 @@ class BananaProService:
             # Segue il formato del notebook funzionante che è più specifico e descrittivo
             # Nel notebook: "Immagine professionale che ritrae la persona {image1} con indossati i pantaloni come da immagine {image2}"
             # IMPORTANTE: Enfatizza che le foto cliente devono essere utilizzate per mantenere volto e forma fisica
+            # Il prompt deve essere molto esplicito: PRIMA le foto cliente, POI il resto
             full_prompt = (
-                "Immagine professionale che ritrae " + customer_part + " con indossato " + product_part + ". "
-                + "IMPORTANTE: Devi utilizzare le foto cliente fornite per mantenere esattamente lo stesso volto, la stessa forma fisica, la stessa corporatura, la stessa altezza e tutte le caratteristiche fisiche della persona. Il volto deve essere identico a quello nelle foto cliente. La persona nell'immagine generata deve essere la stessa persona delle foto cliente, non una persona generica. "
+                "CRITICO: L'immagine generata DEVE mostrare la STESSA PERSONA delle foto cliente fornite. "
+                + "Immagine professionale che ritrae " + customer_part + " con indossato " + product_part + ". "
+                + "REQUISITI OBBLIGATORI: "
+                + "1. Il volto della persona nell'immagine generata DEVE essere IDENTICO al volto nelle foto cliente fornite. "
+                + "2. La forma fisica, l'altezza, la corporatura e tutte le caratteristiche fisiche DEBBONO corrispondere esattamente alle foto cliente. "
+                + "3. La persona nell'immagine generata DEVE essere la STESSA persona delle foto cliente, NON una persona generica o diversa. "
+                + "4. Gli articoli di abbigliamento devono essere indossati sulla persona reale dalle foto cliente, non su una persona diversa. "
                 + prompt + " "
                 + "Il volto deve essere fedele alla foto così come la forma fisica. "
                 + "L'immagine deve essere di alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. "
                 + "La persona deve essere chiaramente visibile e gli articoli devono essere ben indossati sulla persona reale dalle foto cliente."
             )
+            
+            logger.info(f"📝 Prompt completo costruito: {full_prompt[:300]}...")
             
             # Log del prompt completo per debug
             logger.info(f"   📝 Prompt completo: {full_prompt}")
@@ -266,7 +299,14 @@ class BananaProService:
                 # Quindi: prima tutte le foto cliente, poi tutti i prodotti
                 all_images = customer_images + product_images
                 
-                logger.info(f"   📸 Immagini preparate: {len(customer_images)} foto cliente + {len(product_images)} prodotti = {len(all_images)} totali")
+                logger.info(f"   📸 Immagini preparate per il modello AI:")
+                logger.info(f"      - Foto cliente: {len(customer_images)} immagini (riferimenti: {', '.join([f'{{image{i+1}}}' for i in range(len(customer_images))])})")
+                logger.info(f"      - Prodotti: {len(product_images)} immagini (riferimenti: {', '.join([f'{{image{len(customer_images)+i+1}}}' for i in range(len(product_images))])})")
+                logger.info(f"      - Totale: {len(all_images)} immagini")
+                
+                # Verifica che ci siano foto cliente
+                if len(customer_images) == 0:
+                    raise ValueError("Nessuna foto cliente disponibile per la generazione!")
                 
                 # Genera immagine usando il formato corretto in base all'API disponibile
                 if self.use_new_api:
