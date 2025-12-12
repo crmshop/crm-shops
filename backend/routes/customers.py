@@ -275,6 +275,16 @@ async def upload_customer_photo(
     # Verifica che il cliente appartenga a un negozio del negoziante
     await get_customer(customer_id, current_user)
     
+    # Verifica limite di 3 foto per cliente negozio
+    from backend.database import get_supabase
+    supabase = get_supabase()
+    existing_photos = supabase.table("customer_photos").select("id").eq("customer_id", str(customer_id)).execute()
+    if len(existing_photos.data) >= 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Questo cliente ha già il massimo di 3 foto. Elimina una foto esistente per caricarne una nuova."
+        )
+    
     # Se shop_id non è specificato, usa il primo negozio del negoziante associato al cliente
     if not shop_id:
         shops_response = supabase.from_('shops').select('id').eq('owner_id', current_user['id']).execute()

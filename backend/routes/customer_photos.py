@@ -121,8 +121,16 @@ async def upload_customer_photo(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase)
 ):
-    """Carica una foto cliente su Supabase Storage"""
+    """Carica una foto cliente su Supabase Storage (massimo 3 foto per cliente)"""
     try:
+        # Verifica limite di 3 foto per cliente
+        existing_photos = supabase.table("customer_photos").select("id").eq("user_id", current_user["id"]).execute()
+        if len(existing_photos.data) >= 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Hai già caricato il massimo di 3 foto. Elimina una foto esistente per caricarne una nuova."
+            )
+        
         # Usa admin client per upload Storage (bypassa RLS)
         from backend.database import get_supabase_admin
         supabase_admin = get_supabase_admin()
@@ -197,12 +205,34 @@ async def delete_customer_photo(
         
         photo = photo_result.data[0]
         
-        # I clienti possono eliminare solo le proprie foto
-        if current_user["role"] == "cliente" and photo["user_id"] != current_user["id"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Accesso negato"
-            )
+        # Verifica permessi
+        if current_user["role"] == "cliente":
+            # I clienti possono eliminare solo le proprie foto (user_id)
+            if photo.get("user_id") != current_user["id"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Accesso negato"
+                )
+        elif current_user["role"] == "negoziante":
+            # I negozianti possono eliminare foto dei loro clienti negozio
+            if photo.get("customer_id"):
+                # Verifica che il cliente appartenga a un negozio del negoziante
+                customer_check = supabase.table("shop_customers").select("shop_id").eq("id", photo["customer_id"]).single().execute()
+                if customer_check.data:
+                    shop_check = supabase.table("shops").select("owner_id").eq("id", customer_check.data["shop_id"]).single().execute()
+                    if not shop_check.data or shop_check.data["owner_id"] != current_user["id"]:
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Accesso negato"
+                        )
+            elif photo.get("shop_id"):
+                # Foto di cliente esterno associata a negozio
+                shop_check = supabase.table("shops").select("owner_id").eq("id", photo["shop_id"]).single().execute()
+                if not shop_check.data or shop_check.data["owner_id"] != current_user["id"]:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Accesso negato"
+                    )
         
         # Elimina dal database (il file su Storage può rimanere per ora)
         result = supabase.table("customer_photos").delete().eq("id", str(photo_id)).execute()

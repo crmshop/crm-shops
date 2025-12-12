@@ -24,11 +24,18 @@ class GenerateImageRequest(BaseModel):
     prompt_override: Optional[str] = None
 
 
+class OutfitScenarioDetail(BaseModel):
+    scenario_prompt_id: UUID
+    custom_text: Optional[str] = None
+
+
 class GenerateOutfitImageRequest(BaseModel):
     shop_id: UUID
     customer_id: UUID  # ID da shop_customers
     product_ids: List[UUID]  # Max 10 prodotti
-    scenario: Optional[str] = None
+    outfit_id: Optional[UUID] = None  # Se presente, recupera scenari dall'outfit
+    scenarios: Optional[List[OutfitScenarioDetail]] = []  # Scenari con testo libero (max 3)
+    scenario: Optional[str] = None  # Deprecato, usa scenarios
     prompt_override: Optional[str] = None
 
 
@@ -264,11 +271,59 @@ async def generate_outfit_image(
         
         logger.info(f"🛍️ Prodotti recuperati: {len(product_image_urls)}")
         
+        # Recupera dettagli scenari se outfit_id è presente o se scenarios è fornito
+        scenario_details = []
+        if request.outfit_id:
+            # Recupera scenari dall'outfit
+            outfit_result = supabase.table("outfits").select(
+                "outfit_scenarios(scenario_prompt_id, custom_text, scenario_prompts(*))"
+            ).eq("id", str(request.outfit_id)).execute()
+            
+            if outfit_result.data and outfit_result.data[0].get("outfit_scenarios"):
+                for os in outfit_result.data[0]["outfit_scenarios"]:
+                    scenario_prompt = os.get("scenario_prompts", {})
+                    scenario_details.append({
+                        "description": scenario_prompt.get("description", ""),
+                        "position": scenario_prompt.get("position"),
+                        "environment": scenario_prompt.get("environment"),
+                        "lighting": scenario_prompt.get("lighting"),
+                        "background": scenario_prompt.get("background"),
+                        "custom_text": os.get("custom_text")
+                    })
+        elif request.scenarios:
+            # Recupera dettagli scenari dalla lista fornita
+            scenario_ids = [str(s.scenario_prompt_id) for s in request.scenarios]
+            scenarios_result = supabase.table("scenario_prompts").select("*").in_("id", scenario_ids).execute()
+            scenarios_dict = {s["id"]: s for s in scenarios_result.data}
+            
+            for scenario_request in request.scenarios:
+                scenario_prompt = scenarios_dict.get(str(scenario_request.scenario_prompt_id), {})
+                scenario_details.append({
+                    "description": scenario_prompt.get("description", ""),
+                    "position": scenario_prompt.get("position"),
+                    "environment": scenario_prompt.get("environment"),
+                    "lighting": scenario_prompt.get("lighting"),
+                    "background": scenario_prompt.get("background"),
+                    "custom_text": scenario_request.custom_text
+                })
+        
         # Costruisci prompt
         prompt = request.prompt_override
         if not prompt:
             product_names = [p.get("name", "") for p in products]
-            prompt = f"Immagine realistica della persona dalle foto cliente con indossati i seguenti articoli: {', '.join(product_names)}. Alta qualità, stile fotografia professionale."
+            product_categories = [p.get("category", "") for p in products]
+            
+            # Usa build_prompt con scenari dettagliati
+            from backend.services.ai_service import ai_service
+            prompt = ai_service.build_prompt(
+                product_category=", ".join(set(product_categories)) if product_categories else None,
+                scenario_details=scenario_details if scenario_details else None,
+                scenario=request.scenario  # Fallback per retrocompatibilità
+            )
+            
+            # Aggiungi nomi prodotti al prompt
+            if product_names:
+                prompt += f" Articoli indossati: {', '.join(product_names)}."
         
         # Genera immagine usando AI service con tutte le immagini
         from backend.services.ai_service import ai_service
@@ -277,7 +332,7 @@ async def generate_outfit_image(
             customer_photo_urls=customer_photo_urls,  # Lista di tutte le foto cliente (fino a 3)
             product_image_urls=product_image_urls,  # Lista di tutte le immagini prodotto (fino a 10)
             prompt=prompt,
-            scenario=request.scenario,
+            scenario=request.scenario,  # Mantenuto per retrocompatibilità
             ai_model="banana_pro"  # Usa Banana Pro per generazione immagini
         )
         
@@ -289,9 +344,12 @@ async def generate_outfit_image(
             "customer_photo_id": str(customer_photos[0]["id"]),
             "image_url": generated_image_url,
             "prompt_used": prompt,
-            "scenario": request.scenario,
+            "scenario": request.scenario or (", ".join([sd.get("description", "") for sd in scenario_details]) if scenario_details else None),
             "ai_service": ai_result.get("ai_service", "banana_pro")  # Usa il servizio effettivamente usato
         }
+        
+        if request.outfit_id:
+            image_data["outfit_id"] = str(request.outfit_id)
         
         # Se c'è un errore nel risultato, loggalo
         if ai_result.get("status") == "error":

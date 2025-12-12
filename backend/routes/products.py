@@ -19,7 +19,7 @@ class ProductCreate(BaseModel):
     shop_id: UUID
     name: str
     description: Optional[str] = None
-    category: str  # 'vestiti', 'scarpe', 'accessori'
+    category: str  # 'giacche', 'blazer', 'maglieria', 'felpe&ibridi', 'camicie', 'shirty', 'pantaloni', 'calzini', 'short', 'scarpe', 'copricapi', 'accessori'
     season: Optional[str] = None
     occasion: Optional[str] = None
     style: Optional[str] = None
@@ -125,10 +125,15 @@ async def create_product(
             )
         
         # Valida categoria
-        if product.category not in ["vestiti", "scarpe", "accessori"]:
+        valid_categories = [
+            "giacche", "blazer", "maglieria", "felpe&ibridi", 
+            "camicie", "shirty", "pantaloni", "calzini", 
+            "short", "scarpe", "copricapi", "accessori"
+        ]
+        if product.category not in valid_categories:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Categoria deve essere 'vestiti', 'scarpe' o 'accessori'"
+                detail=f"Categoria non valida. Categorie valide: {', '.join(valid_categories)}"
             )
         
         # Valida numero immagini (max 3)
@@ -185,6 +190,19 @@ async def update_product(product_id: UUID, product: ProductUpdate, supabase: Cli
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Nessun campo da aggiornare"
             )
+        
+        # Valida categoria se presente negli aggiornamenti
+        if "category" in updates:
+            valid_categories = [
+                "giacche", "blazer", "maglieria", "felpe&ibridi", 
+                "camicie", "shirty", "pantaloni", "calzini", 
+                "short", "scarpe", "copricapi", "accessori"
+            ]
+            if updates["category"] not in valid_categories:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Categoria non valida. Categorie valide: {', '.join(valid_categories)}"
+                )
         
         result = supabase.table("products").update(updates).eq("id", str(product_id)).execute()
         

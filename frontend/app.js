@@ -119,6 +119,7 @@ function updateNav() {
         const navProducts = document.getElementById('nav-products');
         const navCustomers = document.getElementById('nav-customers');
         const navOutfits = document.getElementById('nav-outfits');
+        const navScenarioPrompts = document.getElementById('nav-scenario-prompts');
         const navLogout = document.getElementById('nav-logout');
     
     if (isAuthenticated) {
@@ -133,11 +134,13 @@ function updateNav() {
             if (navProducts) navProducts.style.display = 'inline';
             if (navCustomers) navCustomers.style.display = 'inline';
             if (navOutfits) navOutfits.style.display = 'inline';
+            if (navScenarioPrompts) navScenarioPrompts.style.display = 'inline';
         } else {
             if (navShops) navShops.style.display = 'none';
             if (navProducts) navProducts.style.display = 'none';
             if (navCustomers) navCustomers.style.display = 'none';
             if (navOutfits) navOutfits.style.display = 'none';
+            if (navScenarioPrompts) navScenarioPrompts.style.display = 'none';
         }
     } else {
         if (navLogin) navLogin.style.display = 'inline';
@@ -147,6 +150,7 @@ function updateNav() {
         if (navProducts) navProducts.style.display = 'none';
         if (navCustomers) navCustomers.style.display = 'none';
         if (navOutfits) navOutfits.style.display = 'none';
+        if (navScenarioPrompts) navScenarioPrompts.style.display = 'none';
         if (navLogout) navLogout.style.display = 'none';
     }
 }
@@ -574,6 +578,33 @@ router.addRoute('/customers', async () => {
     }, 100);
 });
 
+// Route: Scenario Prompts
+router.addRoute('/scenario-prompts', async () => {
+    if (!state.user || state.user.role !== 'negoziante') {
+        router.navigate('/dashboard');
+        return;
+    }
+    
+    document.getElementById('main-content').innerHTML = `
+        <div class="scenarios-page">
+            <h2>Gestione Scenario Prompts</h2>
+            <button class="btn btn-primary" data-action="create-scenario">+ Nuovo Scenario</button>
+            <div id="scenarios-list" class="scenarios-grid">
+                <div class="loading">Caricamento scenari...</div>
+            </div>
+        </div>
+    `;
+    
+    // Gli script sono già caricati in index.html
+    setTimeout(() => {
+        if (window.loadScenarioPrompts) {
+            window.loadScenarioPrompts();
+        } else {
+            console.error('loadScenarioPrompts non disponibile');
+        }
+    }, 100);
+});
+
 // Logout
 document.addEventListener('click', async (e) => {
     if (e.target.id === 'nav-logout') {
@@ -696,6 +727,9 @@ function setupEventDelegation() {
                 break;
             case 'create-outfit':
                 tryAction('create-outfit', 'showCreateOutfitForm');
+                break;
+            case 'create-scenario':
+                tryAction('create-scenario', 'showCreateScenarioForm');
                 break;
             case 'generate-image':
                 tryAction('generate-image', 'showGenerateImageForm');

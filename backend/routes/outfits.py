@@ -14,11 +14,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/outfits", tags=["outfit"])
 
 
+class OutfitScenario(BaseModel):
+    scenario_prompt_id: UUID
+    custom_text: Optional[str] = None  # Testo libero per caratteristiche aggiuntive
+
+
 class OutfitCreate(BaseModel):
     customer_id: UUID  # ID cliente da shop_customers
     shop_id: UUID
     name: Optional[str] = None
     product_ids: List[UUID]  # Max 10 prodotti
+    scenarios: Optional[List[OutfitScenario]] = []  # Max 3 scenari con testo libero
 
 
 class OutfitResponse(BaseModel):
@@ -38,7 +44,9 @@ async def list_outfits(
 ):
     """Lista outfit con filtri opzionali"""
     try:
-        query = supabase.table("outfits").select("*, outfit_products(product_id)")
+        query = supabase.table("outfits").select(
+            "*, outfit_products(product_id), outfit_scenarios(scenario_prompt_id, custom_text)"
+        )
         
         if user_id:
             query = query.eq("user_id", str(user_id))
@@ -47,15 +55,24 @@ async def list_outfits(
         
         result = query.execute()
         
-        # Formatta i risultati per includere product_ids
+        # Formatta i risultati per includere product_ids e scenari
         outfits = []
         for outfit in result.data:
             outfit_data = {**outfit}
             outfit_data["product_ids"] = [
                 op["product_id"] for op in outfit.get("outfit_products", [])
             ]
+            outfit_data["scenarios"] = [
+                {
+                    "scenario_prompt_id": os["scenario_prompt_id"],
+                    "custom_text": os.get("custom_text")
+                }
+                for os in outfit.get("outfit_scenarios", [])
+            ]
             if "outfit_products" in outfit_data:
                 del outfit_data["outfit_products"]
+            if "outfit_scenarios" in outfit_data:
+                del outfit_data["outfit_scenarios"]
             outfits.append(outfit_data)
         
         return {
@@ -74,7 +91,9 @@ async def list_outfits(
 async def get_outfit(outfit_id: UUID, supabase: Client = Depends(get_supabase)):
     """Ottieni dettagli di un outfit"""
     try:
-        result = supabase.table("outfits").select("*, outfit_products(product_id)").eq("id", str(outfit_id)).execute()
+        result = supabase.table("outfits").select(
+            "*, outfit_products(product_id), outfit_scenarios(scenario_prompt_id, custom_text)"
+        ).eq("id", str(outfit_id)).execute()
         
         if not result.data:
             raise HTTPException(
@@ -86,8 +105,17 @@ async def get_outfit(outfit_id: UUID, supabase: Client = Depends(get_supabase)):
         outfit["product_ids"] = [
             op["product_id"] for op in outfit.get("outfit_products", [])
         ]
+        outfit["scenarios"] = [
+            {
+                "scenario_prompt_id": os["scenario_prompt_id"],
+                "custom_text": os.get("custom_text")
+            }
+            for os in outfit.get("outfit_scenarios", [])
+        ]
         if "outfit_products" in outfit:
             del outfit["outfit_products"]
+        if "outfit_scenarios" in outfit:
+            del outfit["outfit_scenarios"]
         
         return {"outfit": outfit}
     except HTTPException:
@@ -116,6 +144,34 @@ async def create_outfit(outfit: OutfitCreate, supabase: Client = Depends(get_sup
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Seleziona almeno un prodotto"
             )
+        
+        # Valida numero scenari (max 3)
+        scenarios = outfit.scenarios or []
+        if len(scenarios) > 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Puoi selezionare massimo 3 scenari"
+            )
+        
+        # Verifica che gli scenari esistano e appartengano al negozio
+        if scenarios:
+            scenario_ids = [str(s.scenario_prompt_id) for s in scenarios]
+            scenarios_result = supabase.table("scenario_prompts").select("*").in_("id", scenario_ids).execute()
+            found_scenario_ids = {s["id"] for s in scenarios_result.data}
+            
+            for scenario in scenarios:
+                if str(scenario.scenario_prompt_id) not in found_scenario_ids:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Scenario prompt {scenario.scenario_prompt_id} non trovato"
+                    )
+                # Verifica che lo scenario appartenga al negozio
+                scenario_data = next(s for s in scenarios_result.data if s["id"] == str(scenario.scenario_prompt_id))
+                if scenario_data["shop_id"] != str(outfit.shop_id):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Lo scenario {scenario.scenario_prompt_id} non appartiene a questo negozio"
+                    )
         
         # Verifica che il cliente appartenga al negozio
         customer_response = supabase.table("shop_customers").select("*").eq("id", str(outfit.customer_id)).eq("shop_id", str(outfit.shop_id)).execute()
@@ -153,15 +209,38 @@ async def create_outfit(outfit: OutfitCreate, supabase: Client = Depends(get_sup
             ]
             supabase.table("outfit_products").insert(outfit_products).execute()
         
-        # Recupera l'outfit completo con i prodotti
-        final_result = supabase.table("outfits").select("*, outfit_products(product_id)").eq("id", outfit_id).execute()
+        # Aggiungi gli scenari all'outfit
+        if scenarios:
+            outfit_scenarios = [
+                {
+                    "outfit_id": outfit_id,
+                    "scenario_prompt_id": str(s.scenario_prompt_id),
+                    "custom_text": s.custom_text
+                }
+                for s in scenarios
+            ]
+            supabase.table("outfit_scenarios").insert(outfit_scenarios).execute()
+        
+        # Recupera l'outfit completo con i prodotti e scenari
+        final_result = supabase.table("outfits").select(
+            "*, outfit_products(product_id), outfit_scenarios(scenario_prompt_id, custom_text)"
+        ).eq("id", outfit_id).execute()
         
         final_outfit = final_result.data[0]
         final_outfit["product_ids"] = [
             op["product_id"] for op in final_outfit.get("outfit_products", [])
         ]
+        final_outfit["scenarios"] = [
+            {
+                "scenario_prompt_id": os["scenario_prompt_id"],
+                "custom_text": os.get("custom_text")
+            }
+            for os in final_outfit.get("outfit_scenarios", [])
+        ]
         if "outfit_products" in final_outfit:
             del final_outfit["outfit_products"]
+        if "outfit_scenarios" in final_outfit:
+            del final_outfit["outfit_scenarios"]
         
         return {
             "message": "Outfit creato con successo",

@@ -63,7 +63,7 @@ class Product(Base):
     shop_id = Column(UUID(as_uuid=True), ForeignKey("shops.id"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text)
-    category = Column(String(50), nullable=False)  # 'vestiti', 'scarpe', 'accessori'
+    category = Column(String(50), nullable=False)  # 'giacche', 'blazer', 'maglieria', 'felpe&ibridi', 'camicie', 'shirty', 'pantaloni', 'calzini', 'short', 'scarpe', 'copricapi', 'accessori'
     season = Column(String(20))  # 'primavera', 'estate', 'autunno', 'inverno', 'tutto'
     occasion = Column(String(50))  # 'casual', 'formale', 'sport', etc.
     style = Column(String(50))

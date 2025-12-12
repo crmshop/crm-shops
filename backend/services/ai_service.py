@@ -104,39 +104,72 @@ class AIService:
         self,
         product_category: Optional[str] = None,
         product_style: Optional[str] = None,
-        scenario: Optional[str] = None
+        scenario: Optional[str] = None,
+        scenario_details: Optional[List[dict]] = None  # Lista di scenari con dettagli
     ) -> str:
         """
         Costruisci un prompt per la generazione immagine
         
         Args:
-            product_category: Categoria prodotto (vestiti, scarpe, accessori)
+            product_category: Categoria prodotto (giacche, blazer, maglieria, felpe&ibridi, camicie, shirty, pantaloni, calzini, short, scarpe, copricapi, accessori)
             product_style: Stile prodotto
-            scenario: Scenario/contesto
+            scenario: Scenario/contesto (deprecato, usa scenario_details)
+            scenario_details: Lista di scenari con dettagli [{"description": "...", "position": "...", "environment": "...", "lighting": "...", "background": "...", "custom_text": "..."}]
         
         Returns:
             Prompt formattato
         """
-        base_prompt = "A person wearing"
+        base_prompt = "Immagine professionale che ritrae la persona dalle foto cliente"
         
         if product_category:
-            base_prompt += f" {product_category}"
+            base_prompt += f" con indossato {product_category}"
         if product_style:
-            base_prompt += f" in {product_style} style"
+            base_prompt += f" in stile {product_style}"
         
-        scenario_prompts = {
-            "montagna": "in a mountain setting with snow and trees, winter atmosphere",
-            "spiaggia": "on a beautiful beach with sand and ocean, summer atmosphere",
-            "città": "in an urban city setting, modern architecture",
-            "festa": "at a party or celebration, festive atmosphere",
-            "lavoro": "in a professional office environment",
-            "casual": "in a casual everyday setting"
-        }
+        # Se ci sono scenari dettagliati, costruisci il prompt con i dettagli
+        if scenario_details and len(scenario_details) > 0:
+            scenario_parts = []
+            for scenario_detail in scenario_details:
+                parts = []
+                
+                if scenario_detail.get("description"):
+                    parts.append(scenario_detail["description"])
+                
+                if scenario_detail.get("position"):
+                    parts.append(f"posizione: {scenario_detail['position']}")
+                
+                if scenario_detail.get("environment"):
+                    parts.append(f"ambiente: {scenario_detail['environment']}")
+                
+                if scenario_detail.get("lighting"):
+                    parts.append(f"illuminazione: {scenario_detail['lighting']}")
+                
+                if scenario_detail.get("background"):
+                    parts.append(f"sfondo: {scenario_detail['background']}")
+                
+                if scenario_detail.get("custom_text"):
+                    parts.append(scenario_detail["custom_text"])
+                
+                if parts:
+                    scenario_parts.append(", ".join(parts))
+            
+            if scenario_parts:
+                base_prompt += ". " + ". ".join(scenario_parts)
+        elif scenario:
+            # Fallback per scenario semplice (retrocompatibilità)
+            scenario_prompts = {
+                "montagna": "in un ambiente montano con neve e alberi, atmosfera invernale",
+                "spiaggia": "su una bellissima spiaggia con sabbia e oceano, atmosfera estiva",
+                "città": "in un ambiente urbano cittadino, architettura moderna",
+                "festa": "a una festa o celebrazione, atmosfera festosa",
+                "lavoro": "in un ambiente professionale d'ufficio",
+                "casual": "in un ambiente casual quotidiano"
+            }
+            
+            if scenario.lower() in scenario_prompts:
+                base_prompt += f". {scenario_prompts[scenario.lower()]}"
         
-        if scenario and scenario.lower() in scenario_prompts:
-            base_prompt += f", {scenario_prompts[scenario.lower()]}"
-        
-        base_prompt += ". High quality, professional photography, realistic lighting"
+        base_prompt += ". Alta qualità, stile fotografia professionale con illuminazione e composizione appropriate. La persona deve essere chiaramente visibile e gli articoli devono essere ben indossati."
         
         return base_prompt
 

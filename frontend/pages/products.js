@@ -88,8 +88,18 @@ function showCreateProductForm() {
                     <div class="form-group">
                         <label>Categoria *</label>
                         <select id="product-category" required>
-                            <option value="vestiti">Vestiti</option>
+                            <option value="">Seleziona...</option>
+                            <option value="giacche">Giacche</option>
+                            <option value="blazer">Blazer</option>
+                            <option value="maglieria">Maglieria</option>
+                            <option value="felpe&ibridi">Felpe & Ibridi</option>
+                            <option value="camicie">Camicie</option>
+                            <option value="shirty">Shirty</option>
+                            <option value="pantaloni">Pantaloni</option>
+                            <option value="calzini">Calzini</option>
+                            <option value="short">Short</option>
                             <option value="scarpe">Scarpe</option>
+                            <option value="copricapi">Copricapi</option>
                             <option value="accessori">Accessori</option>
                         </select>
                     </div>

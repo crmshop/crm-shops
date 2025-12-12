@@ -314,25 +314,40 @@ async function updateCustomer(customerId) {
     }
 }
 
-function uploadCustomerPhoto(customerId) {
+async function uploadCustomerPhoto(customerId) {
     const customer = currentCustomers.find(c => c.id === customerId);
     if (!customer) {
         showError('Cliente non trovato');
         return;
     }
     
-    loadShops().then(shops => {
-        const formHTML = `
-            <div class="modal" id="upload-customer-photo-modal">
-                <div class="modal-content">
-                    <span class="close" onclick="closeUploadCustomerPhotoModal()">&times;</span>
-                    <h2>Carica Foto per ${customer.full_name || customer.email}</h2>
-                    <form id="upload-customer-photo-form" enctype="multipart/form-data">
-                        <div class="form-group">
-                            <label>Seleziona Foto *</label>
-                            <input type="file" id="customer-photo-file" accept="image/*" required>
-                            <small>Formati supportati: JPG, PNG, WEBP (max 10MB)</small>
+    // Verifica limite foto prima di mostrare il form
+    try {
+        const photosData = await window.apiCall(`/api/customers/${customerId}/photos`);
+        const existingPhotos = photosData.photos || [];
+        if (existingPhotos.length >= 3) {
+            showError('Questo cliente ha già il massimo di 3 foto. Elimina una foto esistente per caricarne una nuova.');
+            return;
+        }
+        
+        const remaining = 3 - existingPhotos.length;
+        
+        loadShops().then(shops => {
+            const formHTML = `
+                <div class="modal" id="upload-customer-photo-modal">
+                    <div class="modal-content">
+                        <span class="close" onclick="closeUploadCustomerPhotoModal()">&times;</span>
+                        <h2>Carica Foto per ${customer.full_name || customer.email}</h2>
+                        <div class="alert alert-info" style="margin-bottom: 1rem;">
+                            <strong>Limite foto:</strong> ${existingPhotos.length}/3 caricate 
+                            (${remaining} ${remaining === 1 ? 'foto rimanente' : 'foto rimanenti'})
                         </div>
+                        <form id="upload-customer-photo-form" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <label>Seleziona Foto *</label>
+                                <input type="file" id="customer-photo-file" accept="image/*" required>
+                                <small>Formati supportati: JPG, PNG, WEBP (max 10MB)</small>
+                            </div>
                         <div class="form-group">
                             <label>Negozio *</label>
                             <select id="customer-photo-shop" required>
@@ -374,6 +389,18 @@ function uploadCustomerPhoto(customerId) {
 }
 
 async function uploadPhotoForCustomer(customerId) {
+    // Verifica limite foto prima dell'upload
+    try {
+        const photosData = await window.apiCall(`/api/customers/${customerId}/photos`);
+        const existingPhotos = photosData.photos || [];
+        if (existingPhotos.length >= 3) {
+            showError('Questo cliente ha già il massimo di 3 foto. Elimina una foto esistente per caricarne una nuova.');
+            return;
+        }
+    } catch (error) {
+        console.warn('Errore verifica limite foto:', error);
+    }
+    
     const fileInput = document.getElementById('customer-photo-file');
     const file = fileInput.files[0];
     
@@ -453,12 +480,22 @@ async function viewCustomerPhotos(customerId) {
     try {
         const data = await window.apiCall(`/api/customers/${customerId}/photos`);
         const photos = data.photos || [];
+        const photoCount = photos.length;
+        const maxPhotos = 3;
+        const remaining = maxPhotos - photoCount;
         
         const modalHTML = `
             <div class="modal" id="view-customer-photos-modal">
                 <div class="modal-content large-modal">
                     <span class="close" onclick="closeViewPhotosModal()">&times;</span>
                     <h2>Foto Cliente</h2>
+                    <div class="alert ${photoCount >= maxPhotos ? 'alert-warning' : 'alert-info'}" style="margin-bottom: 1rem;">
+                        <strong>Foto caricate:</strong> ${photoCount}/${maxPhotos} 
+                        ${photoCount >= maxPhotos 
+                            ? '<span style="color: #d32f2f;">(Limite raggiunto - elimina una foto per caricarne una nuova)</span>'
+                            : `(${remaining} ${remaining === 1 ? 'foto rimanente' : 'foto rimanenti'})`
+                        }
+                    </div>
                     <div id="customer-photos-grid" class="photos-grid">
                         ${photos.length === 0 
                             ? '<p class="empty-state">Nessuna foto caricata per questo cliente.</p>'
@@ -469,6 +506,9 @@ async function viewCustomerPhotos(customerId) {
                                     <div class="photo-info">
                                         <p class="photo-angle">Angolo: ${photo.angle || 'Non specificato'}</p>
                                         <p class="photo-date">Caricata: ${new Date(photo.uploaded_at).toLocaleDateString('it-IT')}</p>
+                                    </div>
+                                    <div class="photo-actions">
+                                        <button onclick="deleteCustomerPhoto('${customerId}', '${photo.id}')" class="btn btn-small btn-danger">Elimina</button>
                                     </div>
                                 </div>
                             `).join('')
@@ -481,6 +521,20 @@ async function viewCustomerPhotos(customerId) {
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (error) {
         showError('Errore nel caricamento foto: ' + error.message);
+    }
+}
+
+async function deleteCustomerPhoto(customerId, photoId) {
+    if (!confirm('Sei sicuro di voler eliminare questa foto?')) return;
+    
+    try {
+        await window.apiCall(`/api/customer-photos/${photoId}`, { method: 'DELETE' });
+        showSuccess('Foto eliminata con successo!');
+        // Ricarica la vista foto
+        closeViewPhotosModal();
+        viewCustomerPhotos(customerId);
+    } catch (error) {
+        showError('Errore nell\'eliminazione foto: ' + error.message);
     }
 }
 
@@ -509,6 +563,7 @@ window.showCreateCustomerForm = showCreateCustomerForm;
 window.editCustomer = editCustomer;
 window.uploadCustomerPhoto = uploadCustomerPhoto;
 window.viewCustomerPhotos = viewCustomerPhotos;
+window.deleteCustomerPhoto = deleteCustomerPhoto;
 window.closeCustomerModal = closeCustomerModal;
 window.closeEditCustomerModal = closeEditCustomerModal;
 window.closeUploadCustomerPhotoModal = closeUploadCustomerPhotoModal;

@@ -526,6 +526,46 @@ footer {
     gap: 0.5rem;
 }
 
+.photo-limit-info {
+    margin-bottom: 1rem;
+}
+
+/* Alert styles */
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    border-left: 4px solid;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #0c5460;
+    color: #0c5460;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #856404;
+    color: #856404;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #155724;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #721c24;
+    color: #721c24;
+}
+
+.alert strong {
+    font-weight: 600;
+}
+
 /* Generated Images */
 .generated-image-card {
     border: 1px solid #ddd;

@@ -58,7 +58,7 @@ async def startup_event():
         logger.warning("⚠️ Credenziali Supabase non configurate")
 
 # Importa route
-from backend.routes import auth, products, outfits, shops, customer_photos, generated_images, customers, shop_stats
+from backend.routes import auth, products, outfits, shops, customer_photos, generated_images, customers, shop_stats, scenario_prompts
 
 # Registra route
 app.include_router(auth.router)
@@ -69,6 +69,7 @@ app.include_router(customer_photos.router)
 app.include_router(generated_images.router)
 app.include_router(customers.router)
 app.include_router(shop_stats.router)
+app.include_router(scenario_prompts.router)
 
 
 @app.get("/")

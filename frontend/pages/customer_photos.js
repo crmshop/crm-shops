@@ -6,8 +6,46 @@ async function loadCustomerPhotos() {
         const data = await apiCall('/api/customer-photos/');
         currentPhotos = data.photos || [];
         renderPhotos();
+        updatePhotoLimitInfo();
     } catch (error) {
         showError('Errore nel caricamento foto: ' + error.message);
+    }
+}
+
+function updatePhotoLimitInfo() {
+    // Aggiorna informazioni sul limite foto
+    const photoCount = currentPhotos.length;
+    const maxPhotos = 3;
+    const remaining = maxPhotos - photoCount;
+    
+    // Cerca o crea elemento per mostrare il limite
+    let limitInfo = document.getElementById('photo-limit-info');
+    if (!limitInfo) {
+        const photosList = document.getElementById('photos-list');
+        if (photosList) {
+            limitInfo = document.createElement('div');
+            limitInfo.id = 'photo-limit-info';
+            limitInfo.className = 'photo-limit-info';
+            photosList.parentNode.insertBefore(limitInfo, photosList);
+        }
+    }
+    
+    if (limitInfo) {
+        if (photoCount >= maxPhotos) {
+            limitInfo.innerHTML = `
+                <div class="alert alert-warning">
+                    <strong>Limite raggiunto:</strong> Hai caricato ${photoCount}/${maxPhotos} foto. 
+                    Elimina una foto per caricarne una nuova.
+                </div>
+            `;
+        } else {
+            limitInfo.innerHTML = `
+                <div class="alert alert-info">
+                    <strong>Foto caricate:</strong> ${photoCount}/${maxPhotos} 
+                    (${remaining} ${remaining === 1 ? 'foto rimanente' : 'foto rimanenti'})
+                </div>
+            `;
+        }
     }
 }
 
@@ -42,11 +80,22 @@ function renderPhotos() {
 }
 
 function showUploadPhotoForm() {
+    // Verifica limite prima di mostrare il form
+    if (currentPhotos.length >= 3) {
+        showError('Hai già caricato il massimo di 3 foto. Elimina una foto esistente per caricarne una nuova.');
+        return;
+    }
+    
+    const remaining = 3 - currentPhotos.length;
     const formHTML = `
         <div class="modal" id="upload-photo-modal">
             <div class="modal-content">
                 <span class="close" onclick="closeUploadModal()">&times;</span>
                 <h2>Carica Foto Cliente</h2>
+                <div class="alert alert-info" style="margin-bottom: 1rem;">
+                    <strong>Limite foto:</strong> ${currentPhotos.length}/3 caricate 
+                    (${remaining} ${remaining === 1 ? 'foto rimanente' : 'foto rimanenti'})
+                </div>
                 <form id="upload-photo-form" enctype="multipart/form-data">
                     <div class="form-group">
                         <label>Seleziona Foto *</label>
@@ -110,6 +159,12 @@ async function loadShopsForSelect() {
 }
 
 async function uploadPhoto() {
+    // Verifica limite foto prima dell'upload
+    if (currentPhotos.length >= 3) {
+        showError('Hai già caricato il massimo di 3 foto. Elimina una foto esistente per caricarne una nuova.');
+        return;
+    }
+    
     const fileInput = document.getElementById('photo-file');
     const file = fileInput.files[0];
     
@@ -187,7 +242,7 @@ async function deletePhoto(photoId) {
     try {
         await apiCall(`/api/customer-photos/${photoId}`, { method: 'DELETE' });
         showSuccess('Foto eliminata con successo!');
-        loadCustomerPhotos();
+        await loadCustomerPhotos(); // await per assicurarsi che il caricamento sia completato
     } catch (error) {
         showError('Errore nell\'eliminazione foto: ' + error.message);
     }
