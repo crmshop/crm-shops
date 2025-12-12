@@ -569,18 +569,73 @@ router.addRoute('/customers', async () => {
     `;
     
     // Gli script sono già caricati in index.html
-    setTimeout(() => {
-        function tryLoadCustomers(retries = 5) {
-            if (window.loadCustomers && document.getElementById('customers-list')) {
+    // Attendi che il DOM sia pronto e che la funzione sia disponibile
+    function tryLoadCustomers(retries = 25) {
+        const container = document.getElementById('customers-list');
+        const hasFunction = typeof window.loadCustomers === 'function';
+        const isInitialized = window.customersPageInitialized === true;
+        
+        if (hasFunction && container && isInitialized) {
+            try {
                 window.loadCustomers();
-            } else if (retries > 0) {
-                setTimeout(() => tryLoadCustomers(retries - 1), 200);
-            } else {
-                console.warn('loadCustomers non disponibile o container non trovato');
+                return; // Successo, esci
+            } catch (error) {
+                console.error('Errore nel caricamento clienti:', error);
+                if (container) {
+                    container.innerHTML = `<p class="error">Errore nel caricamento clienti: ${error.message}</p>`;
+                }
+                return; // Errore, esci
             }
         }
-        tryLoadCustomers();
-    }, 100);
+        
+        // Se non è ancora pronto, riprova
+        if (retries > 0) {
+            setTimeout(() => tryLoadCustomers(retries - 1), 100);
+        } else {
+            // Fallback: prova a chiamare direttamente l'API se la funzione non è disponibile
+            console.warn('loadCustomers non disponibile, provo caricamento diretto');
+            const container = document.getElementById('customers-list');
+            if (container) {
+                // Carica direttamente i clienti usando l'API
+                (async () => {
+                    try {
+                        const data = await apiCall('/api/customers/');
+                        const customers = data.customers || data || [];
+                        if (customers.length === 0) {
+                            container.innerHTML = '<p class="empty-state">Nessun cliente trovato. Crea il primo cliente!</p>';
+                        } else {
+                            container.innerHTML = customers.map(c => `
+                                <div class="customer-card">
+                                    <h3>${c.full_name || c.email}</h3>
+                                    <p>${c.email}</p>
+                                    ${c.phone ? `<p>Tel: ${c.phone}</p>` : ''}
+                                    <div class="customer-actions">
+                                        <button onclick="editCustomer('${c.id}')" class="btn btn-small">Modifica</button>
+                                        <button onclick="viewCustomerPhotos('${c.id}')" class="btn btn-small">Foto</button>
+                                    </div>
+                                </div>
+                            `).join('');
+                        }
+                    } catch (error) {
+                        container.innerHTML = `
+                            <div class="error">
+                                <p>Errore nel caricamento clienti: ${error.message}</p>
+                                <button class="btn btn-primary" onclick="location.reload()">Ricarica Pagina</button>
+                            </div>
+                        `;
+                    }
+                })();
+            }
+        }
+    }
+    
+    // Avvia il tentativo di caricamento dopo che il DOM è stato aggiornato
+    // Usa un doppio setTimeout per assicurarsi che gli script siano caricati
+    setTimeout(() => {
+        requestAnimationFrame(() => {
+            tryLoadCustomers();
+        });
+    }, 300);
 });
 
 // Route: Scenario Prompts
