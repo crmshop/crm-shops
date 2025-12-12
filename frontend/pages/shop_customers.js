@@ -376,13 +376,20 @@ async function uploadCustomerPhoto(customerId) {
             </div>
         `;
         
-        document.body.insertAdjacentHTML('beforeend', formHTML);
-        
-        document.getElementById('upload-customer-photo-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await uploadPhotoForCustomer(customerId);
+            document.body.insertAdjacentHTML('beforeend', formHTML);
+            
+            document.getElementById('upload-customer-photo-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await uploadPhotoForCustomer(customerId);
+            });
+        }).catch(error => {
+            console.error('Errore nel caricamento negozi:', error);
+            showError('Errore nel caricamento dei negozi: ' + error.message);
         });
-    });
+    } catch (error) {
+        console.error('Errore verifica limite foto:', error);
+        showError('Errore nella verifica delle foto: ' + error.message);
+    }
 }
 
 async function uploadPhotoForCustomer(customerId) {
