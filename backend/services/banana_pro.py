@@ -315,15 +315,32 @@ class BananaProService:
                     # Formato: [prompt, image1, image2, ...] dove image1, image2 corrispondono a {image1}, {image2} nel prompt
                     contents = [full_prompt] + all_images
                     logger.info(f"   🔄 Chiamata API con {len(contents)} elementi (1 prompt + {len(all_images)} immagini)")
-                    response = self.client.models.generate_content(
-                        model=self.model_name,
-                        contents=contents,
-                    )
+                    logger.info(f"   📋 Contenuto: prompt ({len(full_prompt)} caratteri) + {len(all_images)} immagini PIL")
+                    
+                    try:
+                        response = self.client.models.generate_content(
+                            model=self.model_name,
+                            contents=contents,
+                        )
+                        logger.info(f"   ✅ Chiamata API completata, tipo risposta: {type(response)}")
+                    except Exception as api_error:
+                        logger.error(f"   ❌ Errore nella chiamata API: {api_error}")
+                        import traceback
+                        logger.error(f"   Traceback: {traceback.format_exc()}")
+                        raise
                 else:
                     # Formato vecchio: google.generativeai.GenerativeModel
                     contents = [full_prompt] + all_images
                     logger.info(f"   🔄 Chiamata API legacy con {len(contents)} elementi (1 prompt + {len(all_images)} immagini)")
-                    response = self.model.generate_content(contents)
+                    
+                    try:
+                        response = self.model.generate_content(contents)
+                        logger.info(f"   ✅ Chiamata API completata, tipo risposta: {type(response)}")
+                    except Exception as api_error:
+                        logger.error(f"   ❌ Errore nella chiamata API: {api_error}")
+                        import traceback
+                        logger.error(f"   Traceback: {traceback.format_exc()}")
+                        raise
                 
                 return response
             
@@ -333,13 +350,67 @@ class BananaProService:
             
             logger.info(f"   ✅ Risposta ricevuta da Gemini API")
             
+            # Log dettagliato della risposta per debug
+            if self.use_new_api:
+                logger.info(f"   📋 Struttura risposta (nuova API):")
+                logger.info(f"      - Tipo risposta: {type(response)}")
+                if hasattr(response, 'parts'):
+                    logger.info(f"      - Numero parts: {len(response.parts)}")
+                    for idx, part in enumerate(response.parts, 1):
+                        logger.info(f"      - Part {idx}: tipo={type(part)}")
+                        if hasattr(part, 'text') and part.text is not None:
+                            logger.info(f"         Contiene testo: {part.text[:300]}...")
+                        if hasattr(part, 'inline_data') and part.inline_data is not None:
+                            logger.info(f"         Contiene inline_data: tipo={type(part.inline_data)}")
+                            if hasattr(part.inline_data, 'data'):
+                                logger.info(f"            Dati: tipo={type(part.inline_data.data)}, lunghezza={len(part.inline_data.data) if isinstance(part.inline_data.data, (str, bytes)) else 'N/A'}")
+                        if hasattr(part, 'mime_type'):
+                            logger.info(f"         MIME type: {part.mime_type}")
+                else:
+                    logger.warning(f"      - Risposta non ha attributo 'parts'")
+                    logger.info(f"      - Attributi disponibili: {dir(response)}")
+            else:
+                logger.info(f"   📋 Struttura risposta (legacy API):")
+                if hasattr(response, 'candidates') and response.candidates:
+                    logger.info(f"      - Numero candidates: {len(response.candidates)}")
+                    candidate = response.candidates[0]
+                    if hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts'):
+                            logger.info(f"      - Numero parts: {len(candidate.content.parts)}")
+                            for idx, part in enumerate(candidate.content.parts, 1):
+                                logger.info(f"      - Part {idx}: tipo={type(part)}")
+                                if hasattr(part, 'text'):
+                                    logger.info(f"         Contiene testo: {part.text[:300] if part.text else 'None'}...")
+                                if hasattr(part, 'inline_data') and part.inline_data:
+                                    logger.info(f"         Contiene inline_data")
+            
             # Estrai immagine dalla risposta usando il formato corretto in base all'API disponibile
             if self.use_new_api:
                 # Formato nuovo: response.parts contiene le parti della risposta
-                for part in response.parts:
-                    if part.text is not None:
-                        logger.info(f"   Part contiene testo: {part.text[:200]}...")
-                    elif part.inline_data is not None:
+                if not hasattr(response, 'parts') or not response.parts:
+                    logger.error(f"   ❌ Risposta non ha parts o parts è vuoto")
+                    raise ValueError("Risposta Gemini non valida: nessuna part trovata")
+                
+                found_image = False
+                text_messages = []
+                
+                for idx, part in enumerate(response.parts, 1):
+                    logger.info(f"   🔍 Analisi part {idx}/{len(response.parts)}")
+                    logger.info(f"      - Tipo part: {type(part)}")
+                    
+                    # Controlla se ha testo PRIMA di controllare inline_data
+                    if hasattr(part, 'text') and part.text is not None:
+                        text_content = part.text
+                        logger.warning(f"   ⚠️ Part {idx} contiene TESTO: {text_content[:500]}...")
+                        text_messages.append(text_content)
+                        # Se contiene solo testo, continua a cercare altre parts
+                        # ma salva il messaggio per eventuali errori
+                        continue
+                    
+                    # Controlla se ha inline_data
+                    if hasattr(part, 'inline_data') and part.inline_data is not None:
+                        logger.info(f"   ✅ Part {idx} contiene inline_data!")
+                        found_image = True
                         # Usa as_image() per ottenere l'immagine PIL
                         try:
                             generated_image = part.as_image()
@@ -479,13 +550,43 @@ class BananaProService:
                                     "ai_service": "banana_pro"
                                 }
             
-            # Se non c'è immagine nella risposta
+            # Se non c'è immagine nella risposta, prova a estrarre il testo per vedere se c'è un messaggio di errore
+            error_message = None
+            if self.use_new_api:
+                if hasattr(response, 'parts') and response.parts:
+                    text_parts = [p.text for p in response.parts if hasattr(p, 'text') and p.text is not None]
+                    if text_parts:
+                        error_message = " ".join(text_parts)
+                        logger.error(f"   📝 Messaggio completo dalla risposta: {error_message}")
+                        # Se la risposta contiene solo testo, potrebbe essere un errore o un messaggio informativo
+                        logger.error(f"   ⚠️ La risposta contiene solo testo, non un'immagine. Questo potrebbe indicare:")
+                        logger.error(f"      1. Il modello non supporta la generazione di immagini con questo formato")
+                        logger.error(f"      2. C'è un problema con la configurazione dell'API key")
+                        logger.error(f"      3. Il modello richiede un formato diverso per la generazione di immagini")
+            else:
+                if hasattr(response, 'candidates') and response.candidates:
+                    candidate = response.candidates[0]
+                    if hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts'):
+                            text_parts = [p.text for p in candidate.content.parts if hasattr(p, 'text') and p.text is not None]
+                            if text_parts:
+                                error_message = " ".join(text_parts)
+                                logger.error(f"   📝 Messaggio completo dalla risposta: {error_message}")
+            
             logger.error("⚠️  Gemini API non ha restituito immagine nella risposta")
             logger.error(f"   Numero di parts nella risposta: {len(response.parts) if hasattr(response, 'parts') else 0}")
+            
+            error_detail = f"Verifica che il modello '{self.model_name}' sia disponibile e che la fatturazione sia attiva sul tuo account Google Cloud."
+            if error_message:
+                error_detail += f"\nMessaggio API: {error_message}"
+                # Se il messaggio contiene informazioni utili, aggiungile
+                if "safety" in error_message.lower() or "blocked" in error_message.lower():
+                    error_detail += "\nNota: La richiesta potrebbe essere stata bloccata per motivi di sicurezza."
+                if "quota" in error_message.lower() or "limit" in error_message.lower():
+                    error_detail += "\nNota: Potresti aver raggiunto il limite di quota API."
+            
             raise ValueError(
-                "Gemini API non ha restituito un'immagine. "
-                f"Verifica che il modello '{self.model_name}' sia disponibile "
-                "e che la fatturazione sia attiva sul tuo account Google Cloud."
+                f"Gemini API non ha restituito un'immagine. {error_detail}"
             )
                     
         except httpx.HTTPError as e:
