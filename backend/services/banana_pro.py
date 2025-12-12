@@ -111,16 +111,33 @@ class BananaProService:
             raise ValueError("Massimo 10 prodotti consentiti")
         
         try:
-            # Pulisci URL rimuovendo parametri di query
+            # Pulisci URL rimuovendo parametri di query e valida
             def clean_url(url: str) -> str:
-                if not url:
-                    return url
+                if not url or not isinstance(url, str):
+                    return None
+                url = url.strip()
+                if not url or len(url) == 0:
+                    return None
+                # Verifica che sia un URL valido
+                if not (url.startswith("http://") or url.startswith("https://")):
+                    logger.warning(f"⚠️  URL non valido (non inizia con http/https): {url[:50]}...")
+                    return None
+                # Rimuovi parametri di query
                 url = url.split('?')[0]
                 return url.strip()
             
-            # Pulisci tutti gli URL
+            # Pulisci e valida tutti gli URL
             customer_photo_urls_clean = [clean_url(url) for url in customer_photo_urls if url]
+            customer_photo_urls_clean = [url for url in customer_photo_urls_clean if url]  # Rimuovi None
+            
             product_image_urls_clean = [clean_url(url) for url in product_image_urls if url]
+            product_image_urls_clean = [url for url in product_image_urls_clean if url]  # Rimuovi None
+            
+            # Verifica che ci siano URL validi
+            if not customer_photo_urls_clean:
+                raise ValueError("Nessuna foto cliente valida dopo la pulizia degli URL")
+            if not product_image_urls_clean:
+                raise ValueError("Nessuna immagine prodotto valida dopo la pulizia degli URL")
             
             logger.info(f"📥 Download immagini per Banana Pro:")
             logger.info(f"   Foto cliente: {len(customer_photo_urls_clean)} immagini")
@@ -146,12 +163,30 @@ class BananaProService:
                 # Scarica tutte le immagini prodotto
                 for i, url in enumerate(product_image_urls_clean, 1):
                     try:
-                        response = await client.get(url)
+                        if not url or not isinstance(url, str) or len(url.strip()) == 0:
+                            logger.error(f"❌ URL immagine prodotto {i} non valido: {url}")
+                            raise Exception(f"URL immagine prodotto {i} non valido o vuoto")
+                        
+                        logger.info(f"📥 Download immagine prodotto {i}/{len(product_image_urls_clean)}: {url[:100]}...")
+                        response = await client.get(url, follow_redirects=True)
                         response.raise_for_status()
+                        
+                        if not response.content or len(response.content) == 0:
+                            logger.error(f"❌ Immagine prodotto {i} scaricata ma vuota")
+                            raise Exception(f"Immagine prodotto {i} scaricata ma vuota")
+                        
                         product_images_bytes.append(response.content)
                         logger.info(f"✅ Immagine prodotto {i}/{len(product_image_urls_clean)} scaricata: {len(response.content)} bytes")
+                    except httpx.HTTPError as e:
+                        logger.error(f"❌ Errore HTTP download immagine prodotto {i} ({url[:50]}...): {e}")
+                        if hasattr(e, 'response') and e.response is not None:
+                            logger.error(f"   Status code: {e.response.status_code}")
+                            logger.error(f"   Response: {e.response.text[:200]}")
+                        raise Exception(f"Impossibile scaricare immagine prodotto {i} da {url[:50]}...: {str(e)}")
                     except Exception as e:
-                        logger.error(f"❌ Errore download immagine prodotto {i}: {e}")
+                        logger.error(f"❌ Errore download immagine prodotto {i} ({url[:50] if url else 'URL None'}...): {e}")
+                        import traceback
+                        logger.error(f"   Traceback: {traceback.format_exc()}")
                         raise Exception(f"Impossibile scaricare immagine prodotto {i}: {str(e)}")
             
             # Costruisci prompt se non fornito

@@ -261,15 +261,49 @@ async def generate_outfit_image(
             )
         
         products = products_response.data
-        product_image_urls = [p.get("image_url") for p in products if p.get("image_url")]
+        
+        # Log dettagliato per debug
+        logger.info(f"🛍️ Prodotti recuperati dal database: {len(products)}")
+        for idx, p in enumerate(products, 1):
+            image_url = p.get("image_url")
+            logger.info(f"   Prodotto {idx}: {p.get('name', 'Sconosciuto')} - URL: {image_url if image_url else 'NON DISPONIBILE'}")
+        
+        # Filtra solo prodotti con URL immagine validi (non None, non vuoti, e che iniziano con http)
+        product_image_urls = []
+        products_without_images = []
+        
+        for p in products:
+            image_url = p.get("image_url")
+            if not image_url:
+                products_without_images.append(p.get("name", "Sconosciuto"))
+                continue
+            if not isinstance(image_url, str):
+                products_without_images.append(f"{p.get('name', 'Sconosciuto')} (URL non stringa: {type(image_url)})")
+                continue
+            if not image_url.strip():
+                products_without_images.append(f"{p.get('name', 'Sconosciuto')} (URL vuoto)")
+                continue
+            if not (image_url.startswith("http://") or image_url.startswith("https://")):
+                products_without_images.append(f"{p.get('name', 'Sconosciuto')} (URL non valido: {image_url[:50]}...)")
+                continue
+            product_image_urls.append(image_url)
         
         if not product_image_urls:
+            product_names = [p.get("name", "Sconosciuto") for p in products]
+            error_msg = f"Nessun prodotto ha un'immagine disponibile. Prodotti selezionati: {', '.join(product_names)}"
+            if products_without_images:
+                error_msg += f". Prodotti senza immagini valide: {', '.join(products_without_images)}"
+            logger.error(f"❌ {error_msg}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nessun prodotto ha un'immagine disponibile"
+                detail=error_msg
             )
         
-        logger.info(f"🛍️ Prodotti recuperati: {len(product_image_urls)}")
+        if products_without_images:
+            logger.warning(f"⚠️  {len(products_without_images)} prodotti senza immagini valide: {', '.join(products_without_images)}")
+        
+        logger.info(f"✅ {len(product_image_urls)} prodotti con immagini valide su {len(products)} totali")
+        logger.info(f"   URL immagini prodotto: {product_image_urls}")
         
         # Recupera dettagli scenari se outfit_id è presente o se scenarios è fornito
         scenario_details = []
@@ -307,6 +341,28 @@ async def generate_outfit_image(
                     "custom_text": scenario_request.custom_text
                 })
         
+        # Verifica che gli URL delle immagini prodotto siano validi prima di iniziare la generazione
+        if not product_image_urls or len(product_image_urls) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nessuna immagine prodotto valida disponibile per la generazione"
+            )
+        
+        # Verifica che tutti gli URL siano stringhe valide
+        invalid_urls = []
+        for idx, url in enumerate(product_image_urls, 1):
+            if not url or not isinstance(url, str) or not url.strip():
+                invalid_urls.append(f"URL {idx}: {url}")
+            elif not (url.startswith("http://") or url.startswith("https://")):
+                invalid_urls.append(f"URL {idx}: {url[:50]}... (non inizia con http/https)")
+        
+        if invalid_urls:
+            logger.error(f"❌ URL immagini prodotto non validi: {invalid_urls}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Alcune immagini prodotto hanno URL non validi: {', '.join(invalid_urls)}"
+            )
+        
         # Se ci sono scenari, genera una foto per ogni scenario (max 3)
         # Se non ci sono scenari, genera una sola foto
         scenarios_to_generate = scenario_details if scenario_details else [None]  # Se nessuno scenario, genera una foto
@@ -318,6 +374,8 @@ async def generate_outfit_image(
         
         product_names = [p.get("name", "") for p in products]
         product_categories = [p.get("category", "") for p in products]
+        
+        logger.info(f"🎨 Inizio generazione {len(scenarios_to_generate)} immagine/i con {len(product_image_urls)} immagini prodotto")
         
         generated_images = []
         errors = []
